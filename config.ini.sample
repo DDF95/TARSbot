@@ -1,0 +1,27 @@
+[pyrogram]
+api_id = 
+api_hash = 
+
+[google]
+google_apikey = 
+google_cseid = 
+
+[twitter]
+tw_consumer_key = 
+tw_consumer_secret = 
+tw_access_token = 
+tw_access_token_secret = 
+tw_bearer_token = 
+
+[reddit]
+reddit_client_id = 
+reddit_client_secret = 
+reddit_user_agent = 
+reddit_username = 
+reddit_password = 
+
+[html2pdf]
+h2p_apiKey = 
+
+[openweathermap]
+owm_appid = 
