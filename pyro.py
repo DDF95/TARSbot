@@ -62,17 +62,22 @@ def quote(client, message):
     with open('starting_quote.jpg', 'wb') as handler:
         handler.write(img_data)
     img = Image(filename="starting_quote.jpg")
-    with Drawing() as context:
-        left, top, width, height = 20, 20, 760, 350
-        context.fill_color = 'transparent'
-        context.rectangle(left=left, top=top, width=width, height=height)
-        font = Font(f"{directory}/open-sans/OpenSans-Italic.ttf")
-        context(img)
-        img.caption(f'{message.reply_to_message.text}', left=left, top=top, width=width, height=height, font=font, gravity='west')
+    img.brightness_contrast(brightness=-12)
+    quote_font1 = Font(f"{directory}/open-sans/Vollkorn-Regular.ttf", color="black")
+    quote_font2 = Font(f"{directory}/open-sans/Vollkorn-Regular.ttf", color="white")
+    author_font1 = Font(f"{directory}/open-sans/Vollkorn-Italic.ttf", color="black")
+    author_font2 = Font(f"{directory}/open-sans/Vollkorn-Italic.ttf", color="white")
+    with Drawing() as quote1:
+        img.caption(f'{message.reply_to_message.text}', left=22, top=22, width=760, height=350, font=quote_font1, gravity='north_west')
+    with Drawing() as name1:
+        img.caption(f'- {message.reply_to_message.from_user.first_name}', left=22, top=392, width=760, height=90, font=author_font1, gravity='east')
+    with Drawing() as quote2:
+        img.caption(f'{message.reply_to_message.text}', left=20, top=20, width=760, height=350, font=quote_font2, gravity='north_west')
+    with Drawing() as name2:
+        img.caption(f'- {message.reply_to_message.from_user.first_name}', left=20, top=390, width=760, height=90, font=author_font2, gravity='east')
     img.save(filename="result_quote.jpg")
 
     message.reply_photo("result_quote.jpg")
-
 
 # READ DESCRIPTION
 @app.on_message(filters.command("about", "!"))
