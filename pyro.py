@@ -17,13 +17,12 @@ import ffmpy
 import cv2
 from configparser import ConfigParser
 from pathlib import Path
-#from PIL import Image, ImageDraw, ImageFont
-import io
 from wand.image import Image
 from wand.drawing import Drawing
 from textwrap import wrap
-from wand.color import Color
 from wand.font import Font
+import sys
+import os
 
 app = Client("my_account")
 
@@ -31,6 +30,10 @@ app = Client("my_account")
 cfg = ConfigParser(interpolation=None)
 config_file = Path(__file__).with_name('config.ini')
 cfg.read(config_file)
+
+admin1 = int(cfg.get("admins", "admin1"))
+
+test_group = int(cfg.get("specialgroups", "test_group"))
 
 google_apikey = cfg.get("google", "google_apikey")
 google_cseid = cfg.get("google", "google_cseid")
@@ -54,6 +57,34 @@ owm_appid = cfg.get("openweathermap", "owm_appid")
 
 directory = Path(__file__).absolute().parent
 
+# BACKUP
+@app.on_message(filters.command("backup", "!"))
+def backup(client, message):
+    if message.from_user.id == admin1:
+        sets_file = f"{directory}/sets.json"
+        reaccs_file = f"{directory}/reactions.json"
+        bot_file = f"{directory}/pyro.py"
+        config_ini_file = f"{directory}/config.ini"
+        client.send_message(test_group, datetime.datetime.utcfromtimestamp(message.date + 3600).strftime('Backup eseguito il %d-%m-%Y alle ore %H:%M:%S.'))
+        client.send_document(chat_id=test_group, document=sets_file)
+        client.send_document(chat_id=test_group, document=reaccs_file)
+        client.send_document(chat_id=test_group, document=bot_file)
+        client.send_document(chat_id=test_group, document=config_ini_file)
+    else:
+        message.reply_text("Scusa non posso farlo, non ti conosco")
+
+# RESTART
+@app.on_message(filters.command("restart", "!"))
+def restart(client, message):
+    if message.from_user.id == admin1:
+        args = sys.argv[:]
+        args.insert(0, sys.executable)
+        os.chdir(os.getcwd())
+        message.reply_text("Ok mi riavvio")
+        os.execv(sys.executable, args)
+    else:
+        message.reply_text("Scusa non posso farlo, non ti conosco")
+
 # QUOTE
 @app.on_message(filters.command("quote", "!"))
 def quote(client, message):
@@ -67,14 +98,12 @@ def quote(client, message):
     quote_font2 = Font(f"{directory}/open-sans/Vollkorn-Regular.ttf", color="white")
     author_font1 = Font(f"{directory}/open-sans/Vollkorn-Italic.ttf", color="black")
     author_font2 = Font(f"{directory}/open-sans/Vollkorn-Italic.ttf", color="white")
-    with Drawing() as quote1:
-        img.caption(f'{message.reply_to_message.text}', left=22, top=22, width=760, height=350, font=quote_font1, gravity='north_west')
-    with Drawing() as name1:
-        img.caption(f'- {message.reply_to_message.from_user.first_name}', left=22, top=392, width=760, height=90, font=author_font1, gravity='east')
-    with Drawing() as quote2:
-        img.caption(f'{message.reply_to_message.text}', left=20, top=20, width=760, height=350, font=quote_font2, gravity='north_west')
-    with Drawing() as name2:
-        img.caption(f'- {message.reply_to_message.from_user.first_name}', left=20, top=390, width=760, height=90, font=author_font2, gravity='east')
+    t_now = int(time.time())
+    with Drawing():
+        img.caption(f'{message.reply_to_message.text}', left=62, top=62, width=680, height=270, font=quote_font1, gravity='center')
+        img.caption(f'- {message.reply_to_message.from_user.first_name}, {datetime.datetime.utcfromtimestamp(t_now + 3600).strftime("%d/%m/%Y")}', left=62, top=352, width=680, height=70, font=author_font1, gravity='east')
+        img.caption(f'{message.reply_to_message.text}', left=60, top=60, width=680, height=270, font=quote_font2, gravity='center')
+        img.caption(f'- {message.reply_to_message.from_user.first_name}, {datetime.datetime.utcfromtimestamp(t_now + 3600).strftime("%d/%m/%Y")}', left=60, top=350, width=680, height=70, font=author_font2, gravity='east')
     img.save(filename="result_quote.jpg")
 
     message.reply_photo("result_quote.jpg")
@@ -518,10 +547,7 @@ def pin(client, message):
 @app.on_message(filters.command("settitle", "!"))
 def title(client, message):
     titolo = ' '.join(message.command[1:])
-    client.set_chat_title(
-        chat_id=message.chat.id,
-        title=titolo
-    )
+    client.set_chat_title(chat_id=message.chat.id, title=titolo)
 
 # GROUP ID
 @app.on_message(filters.command("id", "!"))
@@ -627,8 +653,5 @@ def get(client, message):
                 pass
     except:
         pass
-    now = datetime.datetime.now()
-    current_time = now.strftime("%H:%M:%S")
-    print(f'[{current_time}] [{message.chat.title[:20]}] [{message.from_user.first_name}]: {message.text[:50]}')
 
 app.run()
