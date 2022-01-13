@@ -2,6 +2,12 @@
 api_id = 
 api_hash = 
 
+[admins]
+admin1 = 
+
+[specialgroups]
+test_group = 
+
 [google]
 google_apikey = 
 google_cseid = 
