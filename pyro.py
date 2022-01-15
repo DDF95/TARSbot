@@ -23,6 +23,7 @@ from textwrap import wrap
 from wand.font import Font
 import sys
 import os
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Client("my_account")
 
@@ -34,6 +35,8 @@ cfg.read(config_file)
 admin1 = int(cfg.get("admins", "admin1"))
 
 test_group = int(cfg.get("specialgroups", "test_group"))
+
+old_size = int(cfg.get("autorestart", "old_size"))
 
 google_apikey = cfg.get("google", "google_apikey")
 google_cseid = cfg.get("google", "google_cseid")
@@ -57,6 +60,24 @@ owm_appid = cfg.get("openweathermap", "owm_appid")
 
 directory = Path(__file__).absolute().parent
 
+# AUTO RESTART
+def autorestart():
+    new_size = Path(f"{directory}/pyro.py").stat().st_size
+    if new_size != old_size:
+        app.send_message(test_group, "Mi riavvio perché hai cambiato il codice")
+        cfg.set("autorestart", "old_size", str(new_size))
+        with open(config_file, 'w') as configfile:
+            cfg.write(configfile)
+        args = sys.argv[:]
+        args.insert(0, sys.executable)
+        os.chdir(os.getcwd())
+        os.execv(sys.executable, args)
+    else:
+        pass
+scheduler = BackgroundScheduler()
+scheduler.add_job(autorestart, "interval", seconds=5)
+scheduler.start()
+
 # BACKUP
 @app.on_message(filters.command("backup", "!"))
 def backup(client, message):
@@ -71,7 +92,7 @@ def backup(client, message):
         client.send_document(chat_id=test_group, document=bot_file)
         client.send_document(chat_id=test_group, document=config_ini_file)
     else:
-        message.reply_text("Scusa non posso farlo, non ti conosco")
+        message.reply_text("Scusami ma non posso farlo, non ti conosco")
 
 # RESTART
 @app.on_message(filters.command("restart", "!"))
@@ -83,7 +104,7 @@ def restart(client, message):
         message.reply_text("Ok mi riavvio")
         os.execv(sys.executable, args)
     else:
-        message.reply_text("Scusa non posso farlo, non ti conosco")
+        message.reply_text("Scusami ma non posso farlo, non ti conosco")
 
 # QUOTE
 @app.on_message(filters.command("quote", "!"))
@@ -93,19 +114,31 @@ def quote(client, message):
     with open('starting_quote.jpg', 'wb') as handler:
         handler.write(img_data)
     img = Image(filename="starting_quote.jpg")
-    img.brightness_contrast(brightness=-12)
+    img.brightness_contrast(brightness=-20)
     quote_font1 = Font(f"{directory}/open-sans/Vollkorn-Regular.ttf", color="black")
     quote_font2 = Font(f"{directory}/open-sans/Vollkorn-Regular.ttf", color="white")
     author_font1 = Font(f"{directory}/open-sans/Vollkorn-Italic.ttf", color="black")
     author_font2 = Font(f"{directory}/open-sans/Vollkorn-Italic.ttf", color="white")
     t_now = int(time.time())
+    date = datetime.datetime.utcfromtimestamp(t_now + 3600).strftime("%d %B %Y")
+    date = date.replace("January", "Gennaio")
+    date = date.replace("February", "Febbraio")
+    date = date.replace("March", "Marzo")
+    date = date.replace("April", "Aprile")
+    date = date.replace("May", "Maggio")
+    date = date.replace("June", "Giugno")
+    date = date.replace("July", "Luglio")
+    date = date.replace("August", "Agosto")
+    date = date.replace("September", "Settembre")
+    date = date.replace("October", "Ottobre")
+    date = date.replace("November", "Novembre")
+    date = date.replace("December", "Dicembre")
     with Drawing():
         img.caption(f'{message.reply_to_message.text}', left=62, top=62, width=680, height=270, font=quote_font1, gravity='center')
-        img.caption(f'- {message.reply_to_message.from_user.first_name}, {datetime.datetime.utcfromtimestamp(t_now + 3600).strftime("%d/%m/%Y")}', left=62, top=352, width=680, height=70, font=author_font1, gravity='east')
+        img.caption(f'- {message.reply_to_message.from_user.first_name}, {date}', left=62, top=352, width=680, height=70, font=author_font1, gravity='east')
         img.caption(f'{message.reply_to_message.text}', left=60, top=60, width=680, height=270, font=quote_font2, gravity='center')
-        img.caption(f'- {message.reply_to_message.from_user.first_name}, {datetime.datetime.utcfromtimestamp(t_now + 3600).strftime("%d/%m/%Y")}', left=60, top=350, width=680, height=70, font=author_font2, gravity='east')
+        img.caption(f'- {message.reply_to_message.from_user.first_name}, {date}', left=60, top=350, width=680, height=70, font=author_font2, gravity='east')
     img.save(filename="result_quote.jpg")
-
     message.reply_photo("result_quote.jpg")
 
 # READ DESCRIPTION
@@ -479,6 +512,7 @@ def help(client, message):
 • <code>!magic8ball [text]</code>: Seek advice from TARS.
 • <code>!paywall [link]</code>: Tries to bypass paywalled articles using 12ft.io
 • <code>!qr [text]</code>: Generates a QR code.
+• <code>!quote</code>: Generates an inspirational quote based on the message you're replying to.
 • <code>!reddit [subreddit]</code>: Retrieves a random hot post from the subreddit.
 • <code>!reddit [subreddit] [1-27]</code>: Retrieves a specific post from the subreddit.
 • <code>!remind [2h] [text]</code>
