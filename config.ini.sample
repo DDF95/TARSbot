@@ -8,6 +8,9 @@ admin1 =
 [specialgroups]
 test_group = 
 
+[autorestart]
+old_size = 29417
+
 [google]
 google_apikey = 
 google_cseid = 
