@@ -60,6 +60,77 @@ owm_appid = cfg.get("openweathermap", "owm_appid")
 
 directory = Path(__file__).absolute().parent
 
+# GET MEDIA LIST
+@app.on_message(filters.command("media", "!"))
+def getmedialist(client, message):
+    group_id = message.chat.id
+    filename = f"{directory}/media.json"
+    try:
+        with open(filename) as file_media:
+            data_media = json.load(file_media)
+            messaggio = ""
+            for key, value in data_media[f'{group_id}'].items():
+                messaggio += f"{key} → {value.split()[0]}\n"
+            client.send_message(group_id, messaggio)
+    except:
+        pass
+
+# UNSET MEDIA
+@app.on_message(filters.command("unsetmedia", "!"))
+def unsetmedia(client, message):
+    trigger = message.command[1]
+    groupid = message.chat.id
+    filename = f"{directory}/media.json"
+    with open(filename, 'r') as file:
+        file_data = json.load(file)
+    del file_data['{}'.format(groupid)]['{}'.format(trigger)]
+    with open(filename, 'w') as file:
+        message.reply_text("Cancellato amo")
+        json.dump(file_data, file, indent=4)
+    return True
+
+# SET MEDIA
+@app.on_message(filters.command("setmedia", "!"))
+def setmedia(client, message):
+    trigger = message.command[1]
+    filename = f"{directory}/media.json"
+    group_id = message.chat.id
+    media_type = message.reply_to_message.media
+    with open(filename, 'r') as file:
+        file_data = json.load(file)
+    if not file_data.get(f'{group_id}'): 
+        file_data[f'{group_id}'] = {}
+    if media_type == "audio":
+        media_id = message.reply_to_message.audio.file_id
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+    elif media_type == "document":
+        media_id = message.reply_to_message.document.file_id
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+    elif media_type == "photo":
+        media_id = message.reply_to_message.photo.file_id
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+    elif media_type == "sticker":
+        media_id = message.reply_to_message.sticker.file_id
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+    elif media_type == "video":
+        media_id = message.reply_to_message.video.file_id
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+    elif media_type == "animation":
+        media_id = message.reply_to_message.animation.file_id
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+    elif media_type == "voice":
+        media_id = message.reply_to_message.voice.file_id
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+    elif media_type == "video_note":
+        media_id = message.reply_to_message.video_note.file_id
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+    else:
+        pass
+    with open(filename, 'w') as file:
+        message.reply_text("Fatto amo")
+        json.dump(file_data, file, indent=4)
+    return True
+
 # AUTO RESTART
 def autorestart():
     new_size = Path(f"{directory}/pyro.py").stat().st_size
@@ -84,11 +155,13 @@ def backup(client, message):
     if message.from_user.id == admin1:
         sets_file = f"{directory}/sets.json"
         reaccs_file = f"{directory}/reactions.json"
+        media_file = f"{directory}/media.json"
         bot_file = f"{directory}/pyro.py"
         config_ini_file = f"{directory}/config.ini"
         client.send_message(test_group, datetime.datetime.utcfromtimestamp(message.date + 3600).strftime('Backup eseguito il %d-%m-%Y alle ore %H:%M:%S.'))
         client.send_document(chat_id=test_group, document=sets_file)
         client.send_document(chat_id=test_group, document=reaccs_file)
+        client.send_document(chat_id=test_group, document=media_file)
         client.send_document(chat_id=test_group, document=bot_file)
         client.send_document(chat_id=test_group, document=config_ini_file)
     else:
@@ -669,6 +742,36 @@ def get(client, message):
         with open(setsfilename) as fileSets:
             dataSets = json.load(fileSets)
         client.send_message(groupid, dataSets['{}'.format(groupid)]['{}'.format(getFirstWord)])
+    except:
+        pass
+
+    # MEDIA
+    media_filename = f"{directory}/media.json"
+    try:
+        with open(media_filename) as file_media:
+            data_media = json.load(file_media)
+    
+        media_type = data_media[f'{groupid}'][f'{getFirstWord}'].split()[0]
+        media_id = data_media[f'{groupid}'][f'{getFirstWord}'].split()[1]
+
+        if media_type == "audio":
+            client.send_audio(groupid, media_id)
+        elif media_type == "document":
+            client.send_document(groupid, media_id)
+        elif media_type == "photo":
+            client.send_photo(groupid, media_id)
+        elif media_type == "sticker":
+            client.send_sticker(groupid, media_id)
+        elif media_type == "video":
+            client.send_video(groupid, media_id)
+        elif media_type == "animation":
+            client.send_animation(groupid, media_id)
+        elif media_type == "voice":
+            client.send_voice(groupid, media_id)
+        elif media_type == "video_note":
+            client.send_video_note(groupid, media_id)
+        else:
+            pass
     except:
         pass
 
