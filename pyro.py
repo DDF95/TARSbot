@@ -70,7 +70,9 @@ def getmedialist(client, message):
             data_media = json.load(file_media)
             messaggio = ""
             for key, value in data_media[f'{group_id}'].items():
-                messaggio += f"{key} → {value.split()[0]}\n"
+                link = f"https://t.me/c/{group_id}/{value.split()[1]}"
+                link = link.replace("-100", "")
+                messaggio += f"{key} → [{value.split()[0]}]({link})\n"
             client.send_message(group_id, messaggio)
     except:
         pass
@@ -95,35 +97,29 @@ def setmedia(client, message):
     trigger = message.command[1]
     filename = f"{directory}/media.json"
     group_id = message.chat.id
+    media_link = message.reply_to_message.link
+    media_message_id = media_link.split("/")[5]
     media_type = message.reply_to_message.media
     with open(filename, 'r') as file:
         file_data = json.load(file)
     if not file_data.get(f'{group_id}'): 
         file_data[f'{group_id}'] = {}
     if media_type == "audio":
-        media_id = message.reply_to_message.audio.file_id
-        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_message_id}'
     elif media_type == "document":
-        media_id = message.reply_to_message.document.file_id
-        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_message_id}'
     elif media_type == "photo":
-        media_id = message.reply_to_message.photo.file_id
-        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_message_id}'
     elif media_type == "sticker":
-        media_id = message.reply_to_message.sticker.file_id
-        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_message_id}'
     elif media_type == "video":
-        media_id = message.reply_to_message.video.file_id
-        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_message_id}'
     elif media_type == "animation":
-        media_id = message.reply_to_message.animation.file_id
-        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_message_id}'
     elif media_type == "voice":
-        media_id = message.reply_to_message.voice.file_id
-        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_message_id}'
     elif media_type == "video_note":
-        media_id = message.reply_to_message.video_note.file_id
-        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_id}'
+        file_data[f'{group_id}'][f'{trigger}'] = f'{media_type} {media_message_id}'
     else:
         pass
     with open(filename, 'w') as file:
@@ -558,15 +554,18 @@ def help(client, message):
 • <code>!unfollow [Twitter username]</code>: Unfollows the specified Twitter user.
 
 <b>Reactions commands</b>
-• <code>!reaccs</code>: Shows the list of set reactions.
-• <code>!setreacc [word] [reaction emoji]</code>: Saves a reaction.
-• <code>!unreacc [word]</code>: Deletes the reaction. 
+• <code>!reaccs</code>: Shows the list of saved reactions.
+• <code>!setreacc [trigger] [reaction emoji]</code>: Saves a reaction that will automatically be sent when the trigger word appears.
+• <code>!unreacc [trigger]</code>: Deletes the reaction. 
 • <code>!vomita</code>: Reply this to vomit on a message.
 
 <b>Set commands</b>
-• <code>!get</code>: Returns the list of sets.
-• <code>!set [value_name] [data]</code>: Saves the data with the value_name name.
-• <code>!unset [value_name]</code>: Deletes the data with the value_name name.
+• <code>!get</code>: Returns the list of saved sets.
+• <code>!set [trigger] [text]</code>: Saves a text that will automatically be sent when the trigger word appears.
+• <code>!unset [trigger]</code>: Deletes the text associated with the trigger word.
+• <code>!media</code>: Returns the list of media saved.
+• <code>!setmedia [trigger]</code>: Reply this to a message to save a media object (photo, video, sticker, etc...) that will automatically be sent when the trigger word appears.
+• <code>!unsetmedia [trigger]</code>: Deletes the media object associated with the trigger word.
 
 <b>Other commands</b>
 • <code>Alexa play [song title]</code>: Sends the first YouTube search result.
@@ -752,24 +751,25 @@ def get(client, message):
             data_media = json.load(file_media)
     
         media_type = data_media[f'{groupid}'][f'{getFirstWord}'].split()[0]
-        media_id = data_media[f'{groupid}'][f'{getFirstWord}'].split()[1]
+        media_message_id = data_media[f'{groupid}'][f'{getFirstWord}'].split()[1]
+        media_message = app.get_messages(groupid, int(media_message_id))
 
         if media_type == "audio":
-            client.send_audio(groupid, media_id)
+            client.send_audio(groupid, media_message.audio.file_id)
         elif media_type == "document":
-            client.send_document(groupid, media_id)
+            client.send_document(groupid, media_message.document.file_id)
         elif media_type == "photo":
-            client.send_photo(groupid, media_id)
+            client.send_photo(groupid, media_message.photo.file_id)
         elif media_type == "sticker":
-            client.send_sticker(groupid, media_id)
+            client.send_sticker(groupid, media_message.sticker.file_id)
         elif media_type == "video":
-            client.send_video(groupid, media_id)
+            client.send_video(groupid, media_message.video.file_id)
         elif media_type == "animation":
-            client.send_animation(groupid, media_id)
+            client.send_animation(groupid, media_message.animation.file_id)
         elif media_type == "voice":
-            client.send_voice(groupid, media_id)
+            client.send_voice(groupid, media_message.voice.file_id)
         elif media_type == "video_note":
-            client.send_video_note(groupid, media_id)
+            client.send_video_note(groupid, media_message.video_note.file_id)
         else:
             pass
     except:
@@ -782,7 +782,7 @@ def get(client, message):
         with open(reaccsfilename) as fileReaccs:
             dataReaccs = json.load(fileReaccs)
         keys = dataReaccs[str(groupid)].keys()
-        triggerWords = list(filter(lambda x:x in keys, wordList))
+        triggerWords = list(filter(lambda x: x in keys, wordList))
         if any(x in keys for x in wordList):
             try: 
                 client.send_reaction(groupid, message_id, dataReaccs[str(groupid)][triggerWords[0]])
