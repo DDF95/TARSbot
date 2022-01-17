@@ -1,7 +1,7 @@
 # TARSbot
 A Telegram userbot based on Pyrogram
 
-## Installation
+## Setup
 ```
 pip3 install pyrogram ffmpy praw youtube-search-python tweepy pytimeparse google-api-python-client wand apscheduler
 ```
