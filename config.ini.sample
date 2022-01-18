@@ -3,6 +3,7 @@ api_id =
 api_hash = 
 
 [admins]
+bot_id =
 admin1 = 
 
 [specialgroups]
