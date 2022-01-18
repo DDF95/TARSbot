@@ -32,6 +32,7 @@ cfg = ConfigParser(interpolation=None)
 config_file = Path(__file__).with_name('config.ini')
 cfg.read(config_file)
 
+bot_id = int(cfg.get("admins", "bot_id"))
 admin1 = int(cfg.get("admins", "admin1"))
 
 test_group = int(cfg.get("specialgroups", "test_group"))
@@ -60,6 +61,60 @@ owm_appid = cfg.get("openweathermap", "owm_appid")
 
 directory = Path(__file__).absolute().parent
 
+
+# FIND MESSAGE
+@app.on_message(filters.command("find", "!"))
+def findmessage(client, message):
+    search_str = ' '.join(message.command[1:])
+    group_id = message.chat.id
+    messages = []
+    for message in app.search_messages(message.chat.id, query=search_str, limit=1000, offset=1):
+        if message.from_user.id == bot_id:
+            pass
+        elif message.from_user.id != bot_id:
+            pass
+            if message.text is None:
+                pass
+            else:
+                if message.text.startswith("!"):
+                    pass
+                elif message.text.startswith("/"):
+                    pass
+                else:
+                    messages.append(message)
+    try:
+        for message in random.sample(messages, 1):
+            client.send_message(
+                text=f"Da: {message.from_user.first_name} ([link]({message.link}))\n\n{message.text}",
+                chat_id=group_id,
+                disable_web_page_preview=True
+                )
+    except:
+        client.send_message(text="Non trovo nulla", chat_id=group_id)
+
+# DELETE GROUP
+@app.on_message(filters.command("deletegroup", "!"))
+def deletegroup(client, message):
+    if message.from_user.id == admin1:
+        try:
+            app.delete_supergroup(message.chat.id)
+        except:
+            message.reply_text("Eh scusa ma non posso cancellare questo gruppo")
+    else:
+        message.reply_text("Scusami ma non posso farlo, non ti conosco")
+
+# CREATE GROUP
+@app.on_message(filters.command("creategroup", "!"))
+def creategroup(client, message):
+    if message.from_user.id == admin1:
+        group_title = ' '.join(message.command[1:])
+        group = app.create_supergroup(group_title)
+        app.add_chat_members(group.id, message.from_user.id)
+        group_link = app.create_chat_invite_link(group.id)
+        message.reply_text(f'Ho creato il gruppo "[{group_title}]({group_link.invite_link})"')
+    else:
+        message.reply_text("Scusami ma non posso farlo, non ti conosco")
+
 # GET MEDIA LIST
 @app.on_message(filters.command("media", "!"))
 def getmedialist(client, message):
@@ -81,11 +136,11 @@ def getmedialist(client, message):
 @app.on_message(filters.command("unsetmedia", "!"))
 def unsetmedia(client, message):
     trigger = message.command[1]
-    groupid = message.chat.id
+    group_id = message.chat.id
     filename = f"{directory}/media.json"
     with open(filename, 'r') as file:
         file_data = json.load(file)
-    del file_data['{}'.format(groupid)]['{}'.format(trigger)]
+    del file_data[f'{group_id}'][f'{trigger}']
     with open(filename, 'w') as file:
         message.reply_text("Cancellato amo")
         json.dump(file_data, file, indent=4)
@@ -229,11 +284,11 @@ def setgroupdescription(client, message):
 @app.on_message(filters.command("unreacc", "!"))
 def unsetreacc(client, message):
     trigger = message.command[1]
-    groupid = message.chat.id
+    group_id = message.chat.id
     filename = f"{directory}/reactions.json"
     with open(filename, 'r') as file:
         file_data = json.load(file)
-    del file_data['{}'.format(groupid)]['{}'.format(trigger)]
+    del file_data[f'{group_id}'][f'{trigger}']
     with open(filename, 'w') as file:
         message.reply_text("Cancellato amo")
         json.dump(file_data, file, indent=4)
@@ -242,15 +297,15 @@ def unsetreacc(client, message):
 # GET REACTION LIST
 @app.on_message(filters.command("reaccs", "!"))
 def getreacclist(client, message):
-    groupid = message.chat.id
+    group_id = message.chat.id
     filename = f"{directory}/reactions.json"
     try:
-        with open(filename) as fileSets:
-            dataSets = json.load(fileSets)
+        with open(filename) as file_reaccs:
+            data_reaccs = json.load(file_reaccs)
             messaggio = ""
-            for key, value in dataSets['{}'.format(groupid)].items():
+            for key, value in data_reaccs[f'{group_id}'].items():
                 messaggio += f"{key} → {value}\n"
-            client.send_message(groupid, messaggio)
+            client.send_message(group_id, messaggio)
     except:
         pass
 
@@ -259,15 +314,15 @@ def getreacclist(client, message):
 def setreacc(client, message):
     trigger = message.command[1]
     reaction = message.command[2]
-    groupid = message.chat.id
+    group_id = message.chat.id
     filename = f"{directory}/reactions.json"
     reactions = ["👍", "👎", "❤️", "🔥", "🎉", "🤩", "😱", "😁", "😢", "💩", "🤮"]  
     if any(x in reaction for x in reactions):
         with open(filename, 'r') as file:
             file_data = json.load(file)
-        if not file_data.get('{}'.format(groupid)): 
-            file_data['{}'.format(groupid)] = {}
-        file_data['{}'.format(groupid)]['{}'.format(trigger)] = '{}'.format(reaction)
+        if not file_data.get(f'{group_id}'): 
+            file_data[f'{group_id}'] = {}
+        file_data[f'{group_id}'][f'{trigger}'] = f'{reaction}'
         with open(filename, 'w') as file:
             message.reply_text("Fatto amo")
             json.dump(file_data, file, indent=4)
@@ -499,7 +554,7 @@ def tweet(client, message):
 @app.on_message(filters.command("html2pdf", "!"))
 def html2pdf(client, message):
     html2pdfStr = ' '.join(message.command[1:])
-    linkRequests = "https://api.html2pdf.app/v1/generate?url={0}&apiKey={1}".format(html2pdfStr, h2p_apiKey)
+    linkRequests = f"https://api.html2pdf.app/v1/generate?url={html2pdfStr}&apiKey={h2p_apiKey}"
     result = requests.get(linkRequests).content
     document = f"{directory}/othercache/document.pdf"
     with open(document, "wb") as handler:
@@ -595,8 +650,8 @@ def help(client, message):
 # ECHO
 @app.on_message(filters.command("echo", "!"))
 def echo(client, message):
-    echoStr = ' '.join(message.command[1:])
-    client.send_message(message.chat.id, echoStr)
+    echo_str = message.text[6:]
+    client.send_message(message.chat.id, echo_str)
     
 # URBAN DICTIONARY
 @app.on_message(filters.command("ud", "!"))
@@ -665,13 +720,13 @@ def groupid(client, message):
 def set(client, message):
     trigger = message.command[1]
     risposta = message.text[4 + 1 + len(trigger) + 1:]
-    groupid = message.chat.id
+    group_id = message.chat.id
     filename = f"{directory}/sets.json"
     with open(filename, 'r') as file:
         file_data = json.load(file)
-    if not file_data.get('{}'.format(groupid)): 
-        file_data['{}'.format(groupid)] = {}
-    file_data['{}'.format(groupid)]['{}'.format(trigger)] = '{}'.format(risposta)
+    if not file_data.get(f'{group_id}'): 
+        file_data[f'{group_id}'] = {}
+    file_data[f'{group_id}'][f'{trigger}'] = f'{risposta}'
     with open(filename, 'w') as file:
         message.reply_text("Fatto amo")
         json.dump(file_data, file, indent=4)
@@ -681,11 +736,11 @@ def set(client, message):
 @app.on_message(filters.command("unset", "!"))
 def unset(client, message):
     trigger = message.command[1]
-    groupid = message.chat.id
+    group_id = message.chat.id
     filename = f"{directory}/sets.json"
     with open(filename, 'r') as file:
         file_data = json.load(file)
-    del file_data['{}'.format(groupid)]['{}'.format(trigger)]
+    del file_data[f'{group_id}'][f'{trigger}']
     with open(filename, 'w') as file:
         message.reply_text("Cancellato amo")
         json.dump(file_data, file, indent=4)
@@ -718,29 +773,32 @@ def calc(client, message):
 # GET LIST
 @app.on_message(filters.command("get", "!"))
 def getlist(client, message):
-    groupid = message.chat.id
+    group_id = message.chat.id
     filename = f"{directory}/sets.json"
     try:
-        with open(filename) as fileSets:
-            dataSets = json.load(fileSets)
+        with open(filename) as file_sets:
+            data_sets = json.load(file_sets)
             messaggio = ""
-            for key in dataSets['{}'.format(groupid)].keys():
-                messaggio += "{}\n".format(key)
-            client.send_message(groupid, messaggio)
+            for key, value in data_sets[f'{group_id}'].items():
+                if len(value) > 20:
+                    messaggio += f'{key} → "{value[:20]}..."\n'
+                else:
+                    messaggio += f'{key} → "{value}"\n'
+            client.send_message(group_id, messaggio)
     except:
         pass
 
 # GET
 @app.on_message(filters.text)
 def get(client, message):
-    groupid = message.chat.id
+    group_id = message.chat.id
     wordList = message.text.split() 
     getFirstWord = wordList[0]
     setsfilename = f"{directory}/sets.json"
     try:
         with open(setsfilename) as fileSets:
             dataSets = json.load(fileSets)
-        client.send_message(groupid, dataSets['{}'.format(groupid)]['{}'.format(getFirstWord)])
+        client.send_message(group_id, dataSets[f'{group_id}'][f'{getFirstWord}'])
     except:
         pass
 
@@ -750,26 +808,26 @@ def get(client, message):
         with open(media_filename) as file_media:
             data_media = json.load(file_media)
     
-        media_type = data_media[f'{groupid}'][f'{getFirstWord}'].split()[0]
-        media_message_id = data_media[f'{groupid}'][f'{getFirstWord}'].split()[1]
-        media_message = app.get_messages(groupid, int(media_message_id))
+        media_type = data_media[f'{group_id}'][f'{getFirstWord}'].split()[0]
+        media_message_id = data_media[f'{group_id}'][f'{getFirstWord}'].split()[1]
+        media_message = app.get_messages(group_id, int(media_message_id))
 
         if media_type == "audio":
-            client.send_audio(groupid, media_message.audio.file_id)
+            client.send_audio(group_id, media_message.audio.file_id)
         elif media_type == "document":
-            client.send_document(groupid, media_message.document.file_id)
+            client.send_document(group_id, media_message.document.file_id)
         elif media_type == "photo":
-            client.send_photo(groupid, media_message.photo.file_id)
+            client.send_photo(group_id, media_message.photo.file_id)
         elif media_type == "sticker":
-            client.send_sticker(groupid, media_message.sticker.file_id)
+            client.send_sticker(group_id, media_message.sticker.file_id)
         elif media_type == "video":
-            client.send_video(groupid, media_message.video.file_id)
+            client.send_video(group_id, media_message.video.file_id)
         elif media_type == "animation":
-            client.send_animation(groupid, media_message.animation.file_id)
+            client.send_animation(group_id, media_message.animation.file_id)
         elif media_type == "voice":
-            client.send_voice(groupid, media_message.voice.file_id)
+            client.send_voice(group_id, media_message.voice.file_id)
         elif media_type == "video_note":
-            client.send_video_note(groupid, media_message.video_note.file_id)
+            client.send_video_note(group_id, media_message.video_note.file_id)
         else:
             pass
     except:
@@ -781,11 +839,11 @@ def get(client, message):
     try:
         with open(reaccsfilename) as fileReaccs:
             dataReaccs = json.load(fileReaccs)
-        keys = dataReaccs[str(groupid)].keys()
+        keys = dataReaccs[str(group_id)].keys()
         triggerWords = list(filter(lambda x: x in keys, wordList))
         if any(x in keys for x in wordList):
             try: 
-                client.send_reaction(groupid, message_id, dataReaccs[str(groupid)][triggerWords[0]])
+                client.send_reaction(group_id, message_id, dataReaccs[str(group_id)][triggerWords[0]])
             except:
                 pass
     except:
