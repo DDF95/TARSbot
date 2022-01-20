@@ -47,7 +47,13 @@ tw_consumer_secret = cfg.get("twitter", "tw_consumer_secret")
 tw_access_token = cfg.get("twitter", "tw_access_token")
 tw_access_token_secret = cfg.get("twitter", "tw_access_token_secret")
 tw_bearer_token = cfg.get("twitter", "tw_bearer_token")
-tw_client = tweepy.Client(tw_bearer_token, tw_consumer_key, tw_consumer_secret, tw_access_token, tw_access_token_secret)
+tw_client = tweepy.Client(
+    tw_bearer_token,
+    tw_consumer_key,
+    tw_consumer_secret,
+    tw_access_token,
+    tw_access_token_secret
+    )
 
 reddit_client_id = cfg.get("reddit", "reddit_client_id")
 reddit_client_secret = cfg.get("reddit", "reddit_client_secret")
@@ -61,36 +67,73 @@ owm_appid = cfg.get("openweathermap", "owm_appid")
 
 directory = Path(__file__).absolute().parent
 
+# EXECUTE CODE **DANGEROUS**
+@app.on_message(filters.command("exec", "!"))
+def executecode(client, message):
+    if message.from_user.id == admin1:
+        try:
+            # exec_str = message.text[6:]
+            # exec(exec_str)
+            app.send_message(text=f"Eseguito", chat_id=message.chat.id)
+        except Exception as e:
+            message.reply_text(f"{e}")
+    else:
+        message.reply_text("Ti piacerebbe")
+    
+    
+# PRINT MESSAGE
+@app.on_message(filters.command("print", "!"))
+def printmessage(client, message):
+    client.send_message(message.chat.id, f"<code>{message.reply_to_message}</code>")
 
 # FIND MESSAGE
 @app.on_message(filters.command("find", "!"))
 def findmessage(client, message):
-    search_str = ' '.join(message.command[1:])
     group_id = message.chat.id
-    messages = []
-    for message in app.search_messages(message.chat.id, query=search_str, limit=1000, offset=1):
-        if message.from_user.id == bot_id:
-            pass
-        elif message.from_user.id != bot_id:
-            pass
-            if message.text is None:
-                pass
-            else:
-                if message.text.startswith("!"):
-                    pass
-                elif message.text.startswith("/"):
-                    pass
-                else:
+    if "@" in message.command[1]:
+        search_str = ' '.join(message.command[2:])
+        messages = []
+        for message in app.search_messages(
+            message.chat.id,
+            query=search_str,
+            limit=1000,
+            offset=1,
+            from_user=message.command[1]
+            ):
+            if message.text:
+                if not message.text.startswith(("!", "/")):
                     messages.append(message)
-    try:
-        for message in random.sample(messages, 1):
-            client.send_message(
-                text=f"Da: {message.from_user.first_name} ([link]({message.link}))\n\n{message.text}",
-                chat_id=group_id,
-                disable_web_page_preview=True
-                )
-    except:
-        client.send_message(text="Non trovo nulla", chat_id=group_id)
+        try:
+            for message in random.sample(messages, 1):
+                client.send_message(
+                    text=f"Da: {message.from_user.first_name} ([link]({message.link}))\n\n{message.text}",
+                    chat_id=group_id,
+                    disable_web_page_preview=True
+                    )
+        except:
+            client.send_message(text="Non trovo nulla", chat_id=group_id)
+    else:
+        search_str = ' '.join(message.command[1:])
+        messages = []
+        for message in app.search_messages(
+            message.chat.id,
+            query=search_str,
+            limit=1000,
+            offset=1
+            ):
+            if message.from_user.id != bot_id:
+                if message.text:
+                    if not message.text.startswith(("!", "/")):
+                        messages.append(message)
+        try:
+            for message in random.sample(messages, 1):
+                client.send_message(
+                    text=f"Da: {message.from_user.first_name} ([link]({message.link}))\n\n{message.text}",
+                    chat_id=group_id,
+                    disable_web_page_preview=True
+                    )
+        except:
+            client.send_message(text="Non trovo nulla", chat_id=group_id)
 
 # DELETE GROUP
 @app.on_message(filters.command("deletegroup", "!"))
@@ -98,8 +141,8 @@ def deletegroup(client, message):
     if message.from_user.id == admin1:
         try:
             app.delete_supergroup(message.chat.id)
-        except:
-            message.reply_text("Eh scusa ma non posso cancellare questo gruppo")
+        except Exception as e:
+            message.reply_text(f"Eh scusa ma non posso cancellare questo gruppo\n\n{e}")
     else:
         message.reply_text("Scusami ma non posso farlo, non ti conosco")
 
@@ -108,10 +151,13 @@ def deletegroup(client, message):
 def creategroup(client, message):
     if message.from_user.id == admin1:
         group_title = ' '.join(message.command[1:])
-        group = app.create_supergroup(group_title)
-        app.add_chat_members(group.id, message.from_user.id)
-        group_link = app.create_chat_invite_link(group.id)
-        message.reply_text(f'Ho creato il gruppo "[{group_title}]({group_link.invite_link})"')
+        try:
+            group = app.create_supergroup(group_title)
+            app.add_chat_members(group.id, message.from_user.id)
+            group_link = app.create_chat_invite_link(group.id)
+            message.reply_text(f'Ho creato il gruppo "[{group_title}]({group_link.invite_link})"')
+        except Exception as e:
+            message.reply_text(f"Errore:\n<code>{e}</code>")
     else:
         message.reply_text("Scusami ma non posso farlo, non ti conosco")
 
@@ -129,22 +175,25 @@ def getmedialist(client, message):
                 link = link.replace("-100", "")
                 messaggio += f"{key} → [{value.split()[0]}]({link})\n"
             client.send_message(group_id, messaggio)
-    except:
-        pass
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # UNSET MEDIA
 @app.on_message(filters.command("unsetmedia", "!"))
 def unsetmedia(client, message):
-    trigger = message.command[1]
-    group_id = message.chat.id
-    filename = f"{directory}/media.json"
-    with open(filename, 'r') as file:
-        file_data = json.load(file)
-    del file_data[f'{group_id}'][f'{trigger}']
-    with open(filename, 'w') as file:
-        message.reply_text("Cancellato amo")
-        json.dump(file_data, file, indent=4)
-    return True
+    try:
+        trigger = message.command[1]
+        group_id = message.chat.id
+        filename = f"{directory}/media.json"
+        with open(filename, 'r') as file:
+            file_data = json.load(file)
+        del file_data[f'{group_id}'][f'{trigger}']
+        with open(filename, 'w') as file:
+            message.reply_text("Cancellato amo")
+            json.dump(file_data, file, indent=4)
+        return True
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # SET MEDIA
 @app.on_message(filters.command("setmedia", "!"))
@@ -268,17 +317,23 @@ def quote(client, message):
 # READ DESCRIPTION
 @app.on_message(filters.command("about", "!"))
 def readgroupdescription(client, message):
-    description = client.get_chat(message.chat.id).description
-    message.reply_text(description)
+    try:
+        description = client.get_chat(message.chat.id).description
+        message.reply_text(description)
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # SET DESCRIPTION
 @app.on_message(filters.command("setabout", "!"))
 def setgroupdescription(client, message):
     new_description = message.text[9 + 1:]
-    chat_info = client.get_chat(message.chat.id)
-    old_description = chat_info.description
-    message.reply_text("Nuova descrizione impostata, quella vecchia era:\n" + old_description)
-    client.set_chat_description(message.chat.id, new_description)
+    try:
+        chat_info = client.get_chat(message.chat.id)
+        old_description = chat_info.description
+        message.reply_text("Nuova descrizione impostata, quella vecchia era:\n" + old_description)
+        client.set_chat_description(message.chat.id, new_description)
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # UNSET REACTION
 @app.on_message(filters.command("unreacc", "!"))
@@ -306,8 +361,8 @@ def getreacclist(client, message):
             for key, value in data_reaccs[f'{group_id}'].items():
                 messaggio += f"{key} → {value}\n"
             client.send_message(group_id, messaggio)
-    except:
-        pass
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # SET REACTION
 @app.on_message(filters.command("setreacc", "!"))
@@ -334,7 +389,10 @@ def setreacc(client, message):
 @app.on_message(filters.command("vomita", list("!/")))
 def vomita(client, message):
     message_id = message.reply_to_message.message_id
-    client.send_reaction(message.chat.id, message_id, "🤮")
+    try:
+        client.send_reaction(message.chat.id, message_id, "🤮")
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # VERSION
 @app.on_message(filters.command("version", "!"))
@@ -344,19 +402,25 @@ def version(client, message):
 # SET CHAT PICTURE
 @app.on_message(filters.command("setpicture", "!"))
 def grouppropic(client, message):
-    image = message.reply_to_message.photo.file_id
-    client.set_chat_photo(chat_id=message.chat.id, photo=image)
+    try:
+        image = message.reply_to_message.photo.file_id
+        client.set_chat_photo(chat_id=message.chat.id, photo=image)
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # TWITTER TIMELINE
 @app.on_message(filters.command("tweets", "!"))
 def timelineTW(client, message):
     userStr = ' '.join(message.command[1:])
     userStrFixed = userStr.replace("@", "")
-    userResponse = tw_client.get_user(username=userStrFixed)
-    twUserID = userResponse.data['id']
-    tweets = tw_client.get_users_tweets(id=twUserID, tweet_fields=['context_annotations','created_at','geo'], max_results=5, exclude="replies,retweets")
-    for tweet in tweets.data:
-        client.send_message(message.chat.id, tweet)
+    try:
+        userResponse = tw_client.get_user(username=userStrFixed)
+        twUserID = userResponse.data['id']
+        tweets = tw_client.get_users_tweets(id=twUserID, tweet_fields=['context_annotations','created_at','geo'], max_results=5, exclude="replies,retweets")
+        for tweet in tweets.data:
+            client.send_message(message.chat.id, tweet)
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # REDDIT API
 @app.on_message(filters.command("reddit", "!"))
@@ -369,7 +433,10 @@ def reddit(client, message):
         #password=reddit_password,
     )
     redditStr = message.command[1]
-    submissions = list(reddit.subreddit(redditStr).hot(limit=27))
+    try:
+        submissions = list(reddit.subreddit(redditStr).hot(limit=27))
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
     try:
         postNumber = int(message.command[2])
     except:
@@ -463,7 +530,10 @@ def reddit(client, message):
 # DELETE MESSAGE
 @app.on_message(filters.command("del", "!"))
 def delmsg(client, message):
-    message.reply_to_message.delete()
+    try:
+        message.reply_to_message.delete()
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # GOOGLE SEARCH
 @app.on_message(filters.command("search", "!"))
@@ -472,58 +542,76 @@ def gsearch(client, message):
     page = 1
     start = (page - 1) * 10 + 1
     url = f"https://www.googleapis.com/customsearch/v1?key={google_apikey}&cx={google_cseid}&q={searchStr}&start={start}"
-    data = requests.get(url).json()
-    search_items = data.get("items")
-    resultsStr = ""
-    for i, search_item in enumerate(search_items, start=1):
-        title = search_item.get("title")
-        html_snippet = search_item.get("htmlSnippet")
-        link = search_item.get("link")
-        resultsStr += f"<b>{title}</b>\n<i>{html_snippet}</i>\n{link}\n\n"
-    message.reply_text(resultsStr, disable_web_page_preview=True)
+    try:
+        data = requests.get(url).json()
+        search_items = data.get("items")
+        resultsStr = ""
+        for search_item in enumerate(search_items, start=1):
+            title = search_item.get("title")
+            html_snippet = search_item.get("htmlSnippet")
+            link = search_item.get("link")
+            resultsStr += f"<b>{title}</b>\n<i>{html_snippet}</i>\n{link}\n\n"
+        message.reply_text(resultsStr, disable_web_page_preview=True)
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # GOOGLE IMAGE SEARCH
 @app.on_message(filters.command("img", "!"))
 def gimgsearch(client, message):
     searchStr = ' '.join(message.command[1:])
-    resource = build("customsearch", 'v1', developerKey=google_apikey).cse()
-    result = resource.list(q=searchStr, cx=google_cseid, searchType='image').execute()
-    randomInt = random.randrange(10)
-    message.reply_photo(result['items'][randomInt]['link'])
+    try:
+        resource = build("customsearch", 'v1', developerKey=google_apikey).cse()
+        result = resource.list(q=searchStr, cx=google_cseid, searchType='image').execute()
+        randomInt = random.randrange(10)
+        message.reply_photo(result['items'][randomInt]['link'])
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # LATEX
 @app.on_message(filters.command("latex", "!"))
 def latex(client, message):
     latexStr = ' '.join(message.command[1:])
     latexEscaped = urllib.parse.quote("\dpi{200}" + latexStr)
-    latexRequest = "https://latex.codecogs.com/png.image?" + latexEscaped
-    message.reply_photo(latexRequest)
+    try:
+        latexRequest = "https://latex.codecogs.com/png.image?" + latexEscaped
+        message.reply_photo(latexRequest)
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # FOX
 @app.on_message(filters.command("fox", "!"))
 def fox(client, message):
-    foxRequest = requests.get("https://randomfox.ca/floof/")
-    message.reply_photo(foxRequest.json()['image'])
+    try:
+        foxRequest = requests.get("https://randomfox.ca/floof/")
+        message.reply_photo(foxRequest.json()['image'])
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # UNFOLLOW
 @app.on_message(filters.command("unfollow", "!"))
 def unfollowTW(client, message):
     userStr = ' '.join(message.command[1:])
     userStrFixed = userStr.replace("@", "")
-    userResponse = tw_client.get_user(username=userStrFixed)
-    twUserID = userResponse.data['id']
-    tw_client.unfollow_user(twUserID)
-    message.reply_text("Ho unfollowato @" + userStrFixed + " su Twitter")
+    try:
+        userResponse = tw_client.get_user(username=userStrFixed)
+        twUserID = userResponse.data['id']
+        tw_client.unfollow_user(twUserID)
+        message.reply_text("Ho unfollowato @" + userStrFixed + " su Twitter")
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # FOLLOW
 @app.on_message(filters.command("follow", "!"))
 def followTW(client, message):
     userStr = ' '.join(message.command[1:])
     userStrFixed = userStr.replace("@", "")
-    userResponse = tw_client.get_user(username=userStrFixed)
-    twUserID = userResponse.data['id']
-    tw_client.follow_user(twUserID)
-    message.reply_text("Ho followato @" + userStrFixed + " su Twitter")
+    try:
+        userResponse = tw_client.get_user(username=userStrFixed)
+        twUserID = userResponse.data['id']
+        tw_client.follow_user(twUserID)
+        message.reply_text("Ho followato @" + userStrFixed + " su Twitter")
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # REMIND
 @app.on_message(filters.command("remind", "!"))
@@ -547,47 +635,65 @@ def nopaywall(client, message):
 @app.on_message(filters.command("tw", "!"))
 def tweet(client, message):
     tweetStr = ' '.join(message.command[1:])
-    response = tw_client.create_tweet(text=tweetStr)
-    message.reply_text("Ho inviato il tweet amo: https://twitter.com/rTARSbot/status/" + response.data['id'])
+    try:
+        response = tw_client.create_tweet(text=tweetStr)
+        message.reply_text("Ho inviato il tweet amo: https://twitter.com/rTARSbot/status/" + response.data['id'])
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # HTML2PDF
 @app.on_message(filters.command("html2pdf", "!"))
 def html2pdf(client, message):
     html2pdfStr = ' '.join(message.command[1:])
     linkRequests = f"https://api.html2pdf.app/v1/generate?url={html2pdfStr}&apiKey={h2p_apiKey}"
-    result = requests.get(linkRequests).content
-    document = f"{directory}/othercache/document.pdf"
-    with open(document, "wb") as handler:
-        handler.write(result)
-        app.send_document(message.chat.id, document)
+    try:
+        result = requests.get(linkRequests).content
+        document = f"{directory}/othercache/document.pdf"
+        with open(document, "wb") as handler:
+            handler.write(result)
+            app.send_document(message.chat.id, document)
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # QR CODE 
 @app.on_message(filters.command("qr", "!"))
 def qrcode(client, message):
     qrStr = ' '.join(message.command[1:])
-    qrStrEsc = urllib.parse.quote(qrStr)
-    message.reply_photo("https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=" + qrStrEsc)
+    try:
+        qrStrEsc = urllib.parse.quote(qrStr)
+        message.reply_photo("https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=" + qrStrEsc)
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # CAT
 @app.on_message(filters.command("cat", "!"))
 def cat(client, message):
-    catRequest = requests.get("https://api.thecatapi.com/v1/images/search")
-    message.reply_photo(catRequest.json()[0]['url'])
+    try:
+        catRequest = requests.get("https://api.thecatapi.com/v1/images/search")
+        message.reply_photo(catRequest.json()[0]['url'])
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # DOG
 @app.on_message(filters.command("dog", "!"))
 def dog(client, message):
-    dogRequest = requests.get("https://dog.ceo/api/breeds/image/random")
-    message.reply_photo(dogRequest.json()['message'])
+    try:
+        dogRequest = requests.get("https://dog.ceo/api/breeds/image/random")
+        message.reply_photo(dogRequest.json()['message'])
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # GLASSES 
 @app.on_message(filters.command("glasses", "!"))
 def glasses(client, message):
-    glassesStr = ' '.join(message.command[1:])
-    phrase1and2 = glassesStr.split(" - ")
-    phrase1 = phrase1and2[0]
-    phrase2 = phrase1and2[1]
-    message.reply_text(phrase1 + "\n\n<code>(•_•)\n( •_•)>⌐■-■\n(⌐■_■)</code> " + phrase2)
+    try:
+        glassesStr = ' '.join(message.command[1:])
+        phrase1and2 = glassesStr.split(" - ")
+        phrase1 = phrase1and2[0]
+        phrase2 = phrase1and2[1]
+        message.reply_text(phrase1 + "\n\n<code>(•_•)\n( •_•)>⌐■-■\n(⌐■_■)</code> " + phrase2)
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # HELP
 @app.on_message(filters.command("help", list("/.!")))
@@ -595,6 +701,7 @@ def help(client, message):
     message.reply_text("""<b>Chat commands</b>
 • <code>!about</code>: Read group description.
 • <code>!del</code>: Deletes the message you're replying to.
+• <code>!find [text]</code>: Searchs for text messages inside the chat and returns a random result.
 • <code>!id</code>: Returns the chat id.
 • <code>!join [invite link]</code>: Joins a group. 
 • <code>!pin</code>: Pins the message you're replying to.
@@ -658,12 +765,15 @@ def echo(client, message):
 def ud(client, message):
     searchStr = ' '.join(message.command[1:])
     searchEscaped = urllib.parse.quote(searchStr)
-    wordRequest = requests.get('http://api.urbandictionary.com/v0/define?term=' + searchEscaped)
-    message.reply_text(
-        '**' + wordRequest.json()['list'][0]['word'] + '**' + '\n' +
-        wordRequest.json()['list'][0]['definition'] + '\n\nExamples: \n' +
-        '__' + wordRequest.json()['list'][0]['example'] + '__', parse_mode = 'markdown'
-        )
+    try:
+        wordRequest = requests.get('http://api.urbandictionary.com/v0/define?term=' + searchEscaped)
+        message.reply_text(
+            '**' + wordRequest.json()['list'][0]['word'] + '**' + '\n' +
+            wordRequest.json()['list'][0]['definition'] + '\n\nExamples: \n' +
+            '__' + wordRequest.json()['list'][0]['example'] + '__', parse_mode = 'markdown'
+            )
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # LYRICS 
 @app.on_message(filters.command("lyrics", "!"))
@@ -674,8 +784,11 @@ def lyrics(client, message):
     song = authorandsong[1]
     authorEsc = urllib.parse.quote(author)
     songEsc = urllib.parse.quote(song)
-    lyricsRequest = requests.get("https://api.lyrics.ovh/v1/" + authorEsc + "/" + songEsc)
-    message.reply_text(lyricsRequest.json()['lyrics'])
+    try:
+        lyricsRequest = requests.get("https://api.lyrics.ovh/v1/" + authorEsc + "/" + songEsc)
+        message.reply_text(lyricsRequest.json()['lyrics'])
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # MAGIC8BALL
 @app.on_message(filters.command("magic8ball", "!"))
@@ -688,21 +801,30 @@ def magic8ball(client, message):
 def loc(client, message):
     locStr = ' '.join(message.command[1:])
     locEscaped = urllib.parse.quote(locStr)
-    locRequest = requests.get('http://api.openweathermap.org/geo/1.0/direct?q=' + locEscaped + '&limit=1&appid=' + owm_appid)
-    client.send_location(message.chat.id, locRequest.json()[0]['lat'], locRequest.json()[0]['lon'])
+    try:
+        locRequest = requests.get('http://api.openweathermap.org/geo/1.0/direct?q=' + locEscaped + '&limit=1&appid=' + owm_appid)
+        client.send_location(message.chat.id, locRequest.json()[0]['lat'], locRequest.json()[0]['lon'])
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # JOIN CHAT
 @app.on_message(filters.command("join", "!"))
 def join(client, message):
     linkStr = ' '.join(message.command[1:])
     linkFixed = linkStr.replace("+", "joinchat/")
-    client.join_chat(linkFixed)
-    message.reply_text("Forse ho joinato amo")
+    try:
+        client.join_chat(linkFixed)
+        message.reply_text("Ho joinato amo")
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # PIN
 @app.on_message(filters.command("pin", "!"))
 def pin(client, message):
-    message.reply_to_message.pin()
+    try:
+        message.reply_to_message.pin()
+    except Exception as e:
+        message.reply_text(f"Errore:\n<code>{e}</code>")
 
 # SET CHAT TITLE
 @app.on_message(filters.command("settitle", "!"))
