@@ -1,29 +1,30 @@
-from pyrogram import Client, filters
-import json
-from youtubesearchpython import VideosSearch
-import re
-import requests
-import urllib.parse
-import random
-import tweepy
-import time
 import datetime
-from pytimeparse import parse
-from googleapiclient.discovery import build
-import praw
-from pyrogram.types import InputMediaPhoto
+import json
+import os
+import random
+import re
+import sys
+import time
+import urllib.parse
 import urllib.request
-import ffmpy
-import cv2
 from configparser import ConfigParser
 from pathlib import Path
-from wand.image import Image
-from wand.drawing import Drawing
 from textwrap import wrap
-from wand.font import Font
-import sys
-import os
+
+import cv2
+import ffmpy
+import praw
+import requests
+import tweepy
 from apscheduler.schedulers.background import BackgroundScheduler
+from googleapiclient.discovery import build
+from pyrogram import Client, filters
+from pyrogram.types import InputMediaPhoto
+from pytimeparse import parse
+from wand.drawing import Drawing
+from wand.font import Font
+from wand.image import Image
+from youtubesearchpython import VideosSearch
 
 app = Client("my_account")
 
@@ -72,8 +73,8 @@ directory = Path(__file__).absolute().parent
 def executecode(client, message):
     if message.from_user.id == admin1:
         try:
-            # exec_str = message.text[6:]
-            # exec(exec_str)
+            exec_str = message.text[6:]
+            exec(exec_str)
             app.send_message(text=f"Eseguito", chat_id=message.chat.id)
         except Exception as e:
             message.reply_text(f"{e}")
@@ -288,29 +289,24 @@ def quote(client, message):
         handler.write(img_data)
     img = Image(filename="starting_quote.jpg")
     img.brightness_contrast(brightness=-20)
-    quote_font1 = Font(f"{directory}/open-sans/Vollkorn-Regular.ttf", color="black")
-    quote_font2 = Font(f"{directory}/open-sans/Vollkorn-Regular.ttf", color="white")
-    author_font1 = Font(f"{directory}/open-sans/Vollkorn-Italic.ttf", color="black")
-    author_font2 = Font(f"{directory}/open-sans/Vollkorn-Italic.ttf", color="white")
-    t_now = int(time.time())
-    date = datetime.datetime.utcfromtimestamp(t_now + 3600).strftime("%d %B %Y")
-    date = date.replace("January", "Gennaio")
-    date = date.replace("February", "Febbraio")
-    date = date.replace("March", "Marzo")
-    date = date.replace("April", "Aprile")
-    date = date.replace("May", "Maggio")
-    date = date.replace("June", "Giugno")
-    date = date.replace("July", "Luglio")
-    date = date.replace("August", "Agosto")
-    date = date.replace("September", "Settembre")
-    date = date.replace("October", "Ottobre")
-    date = date.replace("November", "Novembre")
-    date = date.replace("December", "Dicembre")
+    quote_font1 = Font(f"{directory}/fonts/Vollkorn-Italic.ttf", color="black")
+    quote_font2 = Font(f"{directory}/fonts/Vollkorn-Italic.ttf", color="white")
+    author_font1 = Font(f"{directory}/fonts/Vollkorn-Regular.ttf", color="black")
+    author_font2 = Font(f"{directory}/fonts/Vollkorn-Regular.ttf", color="white")
+
+    if message.reply_to_message.forward_sender_name:
+        author = message.reply_to_message.forward_sender_name
+    elif message.reply_to_message.forward_from:
+        author = message.reply_to_message.forward_from.first_name
+    else:
+        author = message.reply_to_message.from_user.first_name
+    author = author.upper()
+
     with Drawing():
-        img.caption(f'{message.reply_to_message.text}', left=62, top=62, width=680, height=270, font=quote_font1, gravity='center')
-        img.caption(f'- {message.reply_to_message.from_user.first_name}, {date}', left=62, top=352, width=680, height=70, font=author_font1, gravity='east')
-        img.caption(f'{message.reply_to_message.text}', left=60, top=60, width=680, height=270, font=quote_font2, gravity='center')
-        img.caption(f'- {message.reply_to_message.from_user.first_name}, {date}', left=60, top=350, width=680, height=70, font=author_font2, gravity='east')
+        img.caption(f'{message.reply_to_message.text}', left=62, top=62, width=680, height=270, font=quote_font1, gravity='west')
+        img.caption(f'— {author}', left=62, top=352, width=680, height=70, font=author_font1, gravity='west')
+        img.caption(f'{message.reply_to_message.text}', left=60, top=60, width=680, height=270, font=quote_font2, gravity='west')
+        img.caption(f'— {author}', left=60, top=350, width=680, height=70, font=author_font2, gravity='west')
     img.save(filename="result_quote.jpg")
     message.reply_photo("result_quote.jpg")
 
