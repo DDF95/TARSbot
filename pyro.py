@@ -648,7 +648,7 @@ def nopaywall(client, message):
 # TWEET
 @app.on_message(filters.command("tw", "!"))
 def tweet(client, message):
-    tweetStr = ' '.join(message.command[1:])
+    tweetStr = message.text[2 + 1:]
     try:
         response = tw_client.create_tweet(text=tweetStr)
         message.reply_text("Ho inviato il tweet amo: https://twitter.com/rTARSbot/status/" + response.data['id'])
@@ -673,7 +673,7 @@ def html2pdf(client, message):
 # QR CODE 
 @app.on_message(filters.command("qr", "!"))
 def qrcode(client, message):
-    qrStr = ' '.join(message.command[1:])
+    qrStr = message.text[2 + 1:]
     try:
         qrStrEsc = urllib.parse.quote(qrStr)
         message.reply_photo("https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=" + qrStrEsc)
@@ -702,7 +702,7 @@ def dog(client, message):
 @app.on_message(filters.command("glasses", "!"))
 def glasses(client, message):
     try:
-        glassesStr = ' '.join(message.command[1:])
+        glassesStr = message.text[7 + 1:]
         phrase1and2 = glassesStr.split(" - ")
         phrase1 = phrase1and2[0]
         phrase2 = phrase1and2[1]
@@ -901,7 +901,7 @@ def alexa(client, message):
 # CALC
 @app.on_message(filters.command("calc", "!"))
 def calc(client, message):
-    mathExpr = re.search(r'!calc (.+)', message.text).group(1)
+    mathExpr = message.text[4 + 1:]
     mathExprEscaped = urllib.parse.quote(mathExpr)
     mathjsRequest = requests.get('https://api.mathjs.org/v4/?expr=' + mathExprEscaped)
     risultato = mathjsRequest.text
