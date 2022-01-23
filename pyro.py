@@ -10,6 +10,7 @@ import urllib.request
 from configparser import ConfigParser
 from pathlib import Path
 from textwrap import wrap
+import glob
 
 import cv2
 import ffmpy
@@ -67,6 +68,8 @@ h2p_apiKey = cfg.get("html2pdf", "h2p_apiKey")
 owm_appid = cfg.get("openweathermap", "owm_appid")
 
 directory = Path(__file__).absolute().parent
+cache = Path(f"{directory}/cache")
+cache.mkdir(parents=True, exist_ok=True)
 
 # EXECUTE CODE **DANGEROUS**
 @app.on_message(filters.command("exec", "!"))
@@ -285,9 +288,9 @@ def restart(client, message):
 def quote(client, message):
     random_int = random.randrange(99999)
     img_data = requests.get(f"https://picsum.photos/800/500?{str(random_int)}").content
-    with open('starting_quote.jpg', 'wb') as handler:
+    with open(f"{directory}/cache/starting_quote.jpg", 'wb') as handler:
         handler.write(img_data)
-    img = Image(filename="starting_quote.jpg")
+    img = Image(filename=f"{directory}/cache/starting_quote.jpg")
     img.brightness_contrast(brightness=-20)
     quote_font1 = Font(f"{directory}/fonts/Vollkorn-Italic.ttf", color="black")
     quote_font2 = Font(f"{directory}/fonts/Vollkorn-Italic.ttf", color="white")
@@ -307,8 +310,10 @@ def quote(client, message):
         img.caption(f'— {author}', left=62, top=352, width=680, height=70, font=author_font1, gravity='west')
         img.caption(f'{message.reply_to_message.text}', left=60, top=60, width=680, height=270, font=quote_font2, gravity='west')
         img.caption(f'— {author}', left=60, top=350, width=680, height=70, font=author_font2, gravity='west')
-    img.save(filename="result_quote.jpg")
-    message.reply_photo("result_quote.jpg")
+    img.save(filename=f"{directory}/cache/result_quote.jpg")
+    message.reply_photo(f"{directory}/cache/result_quote.jpg")
+    os.remove(f"{directory}/cache/starting_quote.jpg")
+    os.remove(f"{directory}/cache/result_quote.jpg")
 
 # READ DESCRIPTION
 @app.on_message(filters.command("about", "!"))
@@ -449,6 +454,7 @@ def reddit(client, message):
     gallery = []
     images = []
     media_caption = f"<b>{title}</b>\n{upvotes} upvotes | <a href='{permalink}'>{sub}</a>"
+
     if submission.is_self == True:
         selftext = submission.selftext
         textSelf = f"<b>{title}</b>\n{upvotes} upvotes | <a href='{permalink}'>{sub}</a>\n\n{selftext}"
@@ -460,6 +466,7 @@ def reddit(client, message):
     else:
         if "redd" in url:
             if "gallery" in url:
+                message.reply_text("Scarico la galleria, potrebbe volerci qualche secondo...")
                 ids = [i['media_id'] for i in submission.gallery_data['items']]
                 for id in ids:
                     url = submission.media_metadata[id]['p'][0]['u']
@@ -468,7 +475,7 @@ def reddit(client, message):
                 for index, url in enumerate(gallery):
                     link = urllib.request.urlopen(url)
                     try:
-                        name = f"{directory}/albumcache/image{index+1}.jpg"
+                        name = f"{directory}/cache/image{index+1}.jpg"
                         images.append(name)
                         with open(name, "wb") as output:
                             output.write(link.read())
@@ -476,9 +483,14 @@ def reddit(client, message):
                         print("Unable to create file")
                 client.send_media_group(reply_to_message_id=message.message_id, chat_id=message.chat.id, media=[InputMediaPhoto(name) for name in images[:10]])
                 client.send_message(message.chat.id, media_caption, disable_web_page_preview=True)
+                files = glob.glob(f"{directory}/cache/*")
+                for f in files:
+                    os.remove(f)
+
             elif submission.url.endswith(".gif"):
                 videourl = submission.preview['images'][0]['variants']['mp4']['source']['url']
                 message.reply_video(video=videourl, caption=media_caption)
+
             elif "v.redd.it" in url:
                 message.reply_text("Scarico il video, potrebbe volerci qualche secondo...")
                 url = submission.media['reddit_video']['fallback_url']
@@ -486,15 +498,15 @@ def reddit(client, message):
                 url_audio = url.replace("1080", "audio")
                 url_audio = url_audio.replace("720", "audio")
                 url_audio = url_audio.replace("360", "audio")
-                video_file = f"{directory}/videocache/video.mp4"
-                audio_file = f"{directory}/videocache/audio.mp4"
+                video_file = f"{directory}/cache/video.mp4"
+                audio_file = f"{directory}/cache/audio.mp4"
                 link_video = urllib.request.urlopen(url)
                 link_audio = urllib.request.urlopen(url_audio)
                 with open(video_file, "wb") as output:
                     output.write(link_video.read())
                 with open(audio_file, "wb") as output:
                     output.write(link_audio.read())
-                video_file_finale = f"{directory}/videocache/video_con_audio.mp4"
+                video_file_finale = f"{directory}/cache/video_con_audio.mp4"
                 ff = ffmpy.FFmpeg(
                     inputs={url: None, url_audio: None},
                     outputs={video_file_finale: '-y -c:v copy -c:a aac -loglevel quiet'})
@@ -503,8 +515,12 @@ def reddit(client, message):
                 height = cv2video.get(cv2.CAP_PROP_FRAME_HEIGHT)
                 width  = cv2video.get(cv2.CAP_PROP_FRAME_WIDTH) 
                 message.reply_video(video=video_file_finale, caption=media_caption, height=int(height), width=int(width))
+                files = glob.glob(f"{directory}/cache/*")
+                for f in files:
+                    os.remove(f)
             else:
                 message.reply_photo(photo=url, caption=media_caption)
+
         elif "imgur" in url:
             if submission.url.endswith(".gif") or submission.url.endswith(".gifv"):
                 videourl = url.replace("gifv", "mp4")
@@ -513,10 +529,12 @@ def reddit(client, message):
             else:
                 url += ".jpeg"
                 message.reply_photo(photo=url, caption=media_caption)
+
         elif "gfycat" in url:
             url = submission.media['oembed']['thumbnail_url'][:-20]
             videourl = f"{url}-mobile.mp4"
             message.reply_video(video=videourl, caption=media_caption)
+
         elif "redgifs.com" in url:
             videourl = submission.preview['reddit_video_preview']['fallback_url']
             message.reply_video(video=videourl, caption=media_caption)
@@ -644,10 +662,11 @@ def html2pdf(client, message):
     linkRequests = f"https://api.html2pdf.app/v1/generate?url={html2pdfStr}&apiKey={h2p_apiKey}"
     try:
         result = requests.get(linkRequests).content
-        document = f"{directory}/othercache/document.pdf"
+        document = f"{directory}/cache/document.pdf"
         with open(document, "wb") as handler:
             handler.write(result)
             app.send_document(message.chat.id, document)
+            os.remove(f"{directory}/cache/document.pdf")
     except Exception as e:
         message.reply_text(f"Errore:\n<code>{e}</code>")
 
