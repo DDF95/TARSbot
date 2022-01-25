@@ -79,12 +79,12 @@ cache.mkdir(parents=True, exist_ok=True)
 def textgen(client, message):
     if message.from_user.id == admin1:
         try:
-            prompt = message.text[8 + 1:]
+            input = message.text[8 + 1:]
 
             openai.api_key = openai_apikey
             response = openai.Completion.create(
                 engine="text-babbage-001",
-                prompt=f"{prompt}",
+                prompt=f"{input}",
                 temperature=0.7,
                 max_tokens=100,
                 top_p=1,
@@ -92,7 +92,9 @@ def textgen(client, message):
                 presence_penalty=0
             )
 
-            message.reply_text(f"{response['choices'][0]['text']}")
+            output = response['choices'][0]['text'].lstrip()
+            
+            message.reply_text(f"Input:\n<b>{input}</b>\n\nOutput:\n{output}")
 
         except Exception as e:
             message.reply_text(f"{e}")
