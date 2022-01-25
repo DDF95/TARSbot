@@ -21,10 +21,6 @@ import tweepy
 from apscheduler.schedulers.background import BackgroundScheduler
 from googleapiclient.discovery import build
 from pyrogram import Client, filters
-from pyrogram.raw.base import InputPeer
-from pyrogram.raw.functions.messages import (GetScheduledHistory,
-                                             GetScheduledMessages)
-from pyrogram.raw.types import InputPeerUser
 from pyrogram.types import InputMediaPhoto
 from pytimeparse import parse
 from wand.drawing import Drawing
@@ -87,10 +83,10 @@ def textgen(client, message):
 
             openai.api_key = openai_apikey
             response = openai.Completion.create(
-                engine="text-ada-001",
+                engine="text-babbage-001",
                 prompt=f"{prompt}",
                 temperature=0.7,
-                max_tokens=64,
+                max_tokens=100,
                 top_p=1,
                 frequency_penalty=0,
                 presence_penalty=0
@@ -135,7 +131,7 @@ def faceai(client, message):
 
             openai.api_key = openai_apikey
             response = openai.Completion.create(
-                engine="text-ada-001",
+                engine="text-babbage-001",
                 prompt=f"Name: {name}\nAge: {age}\nBiography:",
                 temperature=0.7,
                 max_tokens=64,
@@ -150,14 +146,6 @@ def faceai(client, message):
             message.reply_text(f"{e}")
     else:
         message.reply_text("Scusami ma non posso farlo, non ti conosco")
-
-# REMINDERS LIST
-@app.on_message(filters.command("reminders", "!"))
-def reminderslist(client, message):
-    channel = app.resolve_peer(message.chat.id)
-    scheduled_history = GetScheduledHistory(peer=InputPeerUser(user_id=bot_id, access_hash=0), hash=0)
-    #scheduled_messages = GetScheduledMessages(peer=channel, id=list(1))
-    message.reply_text(scheduled_history)
 
 # EXECUTE CODE **DANGEROUS**
 @app.on_message(filters.command("exec", "!"))
@@ -486,7 +474,9 @@ def vomita(client, message):
 # VERSION
 @app.on_message(filters.command("version", "!"))
 def version(client, message):
-    message.reply_text("Version 0.69\nhttps://github.com/DDF95/TARSbot")
+    last_modified = os.path.getmtime(f"{directory}/pyro.py")
+    versioning = datetime.datetime.utcfromtimestamp(last_modified + 3600).strftime('%Y.%m%d.%H%M')
+    message.reply_text(f"Version {versioning}\nhttps://github.com/DDF95/TARSbot")
 
 # SET CHAT PICTURE
 @app.on_message(filters.command("setpicture", "!"))
