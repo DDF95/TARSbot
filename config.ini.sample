@@ -35,3 +35,6 @@ h2p_apiKey =
 
 [openweathermap]
 owm_appid = 
+
+[openai]
+openai_apikey =
