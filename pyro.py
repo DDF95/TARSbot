@@ -1,4 +1,5 @@
 import datetime
+import glob
 import json
 import os
 import random
@@ -10,16 +11,20 @@ import urllib.request
 from configparser import ConfigParser
 from pathlib import Path
 from textwrap import wrap
-import glob
 
 import cv2
 import ffmpy
+import openai
 import praw
 import requests
 import tweepy
 from apscheduler.schedulers.background import BackgroundScheduler
 from googleapiclient.discovery import build
 from pyrogram import Client, filters
+from pyrogram.raw.base import InputPeer
+from pyrogram.raw.functions.messages import (GetScheduledHistory,
+                                             GetScheduledMessages)
+from pyrogram.raw.types import InputPeerUser
 from pyrogram.types import InputMediaPhoto
 from pytimeparse import parse
 from wand.drawing import Drawing
@@ -67,9 +72,92 @@ h2p_apiKey = cfg.get("html2pdf", "h2p_apiKey")
 
 owm_appid = cfg.get("openweathermap", "owm_appid")
 
+openai_apikey = cfg.get("openai", "openai_apikey")
+
 directory = Path(__file__).absolute().parent
 cache = Path(f"{directory}/cache")
 cache.mkdir(parents=True, exist_ok=True)
+
+# GENERATE TEXT
+@app.on_message(filters.command("textgen", "!"))
+def textgen(client, message):
+    if message.from_user.id == admin1:
+        try:
+            prompt = message.text[8 + 1:]
+
+            openai.api_key = openai_apikey
+            response = openai.Completion.create(
+                engine="text-ada-001",
+                prompt=f"{prompt}",
+                temperature=0.7,
+                max_tokens=64,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0
+            )
+
+            message.reply_text(f"{response['choices'][0]['text']}")
+
+        except Exception as e:
+            message.reply_text(f"{e}")
+    else:
+        message.reply_text("Scusami ma non posso farlo, non ti conosco")
+
+# FACES
+@app.on_message(filters.command("face", "!"))
+def face(client, message):
+    try:
+        img_data = requests.get("https://thispersondoesnotexist.com/image").content
+        with open(f"{cache}/face.jpg", 'wb') as file:
+            file.write(img_data)
+        
+        identity_data = requests.get("https://api.namefake.com/")
+        name = identity_data.json()['name']
+        age = str(random.randrange(100))
+
+        message.reply_photo(photo=f"{cache}/face.jpg", caption=f"Nome: {name}\nEtà: {age}")
+
+    except Exception as e:
+        message.reply_text(f"{e}")
+
+# FACES OPENAI
+@app.on_message(filters.command("faceai", "!"))
+def faceai(client, message):
+    if message.from_user.id == admin1:
+        try:
+            img_data = requests.get("https://thispersondoesnotexist.com/image").content
+            with open(f"{cache}/face.jpg", 'wb') as file:
+                file.write(img_data)
+            
+            identity_data = requests.get("https://api.namefake.com/")
+            name = identity_data.json()['name']
+            age = str(random.randrange(100))
+
+            openai.api_key = openai_apikey
+            response = openai.Completion.create(
+                engine="text-ada-001",
+                prompt=f"Name: {name}\nAge: {age}\nBiography:",
+                temperature=0.7,
+                max_tokens=64,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0
+            )
+
+            message.reply_photo(photo=f"{cache}/face.jpg", caption=f"Nome: {name}\nEtà: {age}\nBiografia: {response['choices'][0]['text']}")
+        
+        except Exception as e:
+            message.reply_text(f"{e}")
+    else:
+        message.reply_text("Scusami ma non posso farlo, non ti conosco")
+
+# REMINDERS LIST
+@app.on_message(filters.command("reminders", "!"))
+def reminderslist(client, message):
+    channel = app.resolve_peer(message.chat.id)
+    scheduled_history = GetScheduledHistory(peer=InputPeerUser(user_id=bot_id, access_hash=0), hash=0)
+    #scheduled_messages = GetScheduledMessages(peer=channel, id=list(1))
+    message.reply_text(scheduled_history)
 
 # EXECUTE CODE **DANGEROUS**
 @app.on_message(filters.command("exec", "!"))
