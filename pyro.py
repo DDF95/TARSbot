@@ -92,7 +92,7 @@ def textgen(client, message):
                 max_tokens=200,
                 top_p=1,
                 frequency_penalty=0,
-                presence_penalty=0
+                presence_penalty=0.6
             )
 
             output = response['choices'][0]['text'].lstrip()
@@ -1080,10 +1080,10 @@ def get(client, message):
                 response = openai.Completion.create(
                     engine="text-curie-001",
                     prompt=f"Tu: {message.text}\nAmico:",
-                    temperature=0.7,
-                    max_tokens=50,
+                    temperature=0.5,
+                    max_tokens=60,
                     top_p=1,
-                    frequency_penalty=0,
+                    frequency_penalty=0.5,
                     presence_penalty=0
                 )
 
