@@ -75,26 +75,27 @@ cache = Path(f"{directory}/cache")
 cache.mkdir(parents=True, exist_ok=True)
 
 # GENERATE TEXT
-@app.on_message(filters.command("textgen", "!"))
+@app.on_message(filters.command("ask", "!"))
 def textgen(client, message):
-    if message.from_user.id == admin1:
+    trusted_groups = []
+    if message.chat.id in trusted_groups:
         try:
-            input = message.text[8 + 1:]
+            input = message.text[4 + 1:]
 
             openai.api_key = openai_apikey
             response = openai.Completion.create(
-                engine="text-babbage-001",
+                engine="text-curie-001",
                 prompt=f"{input}",
                 temperature=0.7,
-                max_tokens=100,
+                max_tokens=200,
                 top_p=1,
                 frequency_penalty=0,
                 presence_penalty=0
             )
 
             output = response['choices'][0]['text'].lstrip()
-            
-            message.reply_text(f"Input:\n<b>{input}</b>\n\nOutput:\n{output}")
+        
+            message.reply_text(f"Domanda:\n<b>{input}</b>\n\nRisposta:\n{output}")
 
         except Exception as e:
             message.reply_text(f"{e}")
@@ -800,7 +801,7 @@ def help(client, message):
 • <code>!id</code>: Returns the chat id.
 • <code>!join [invite link]</code>: Joins a group. 
 • <code>!pin</code>: Pins the message you're replying to.
-• <code!setabout [description]</code>: Set group description.
+• <code>!setabout [description]</code>: Set group description.
 • <code>!setpicture</code>: Sets the photo you're replying to as the chat's picture. 
 • <code>!settitle [text]</code>: Changes the group's title.
 
@@ -905,13 +906,16 @@ def loc(client, message):
 # JOIN CHAT
 @app.on_message(filters.command("join", "!"))
 def join(client, message):
-    linkStr = ' '.join(message.command[1:])
-    linkFixed = linkStr.replace("+", "joinchat/")
-    try:
-        client.join_chat(linkFixed)
-        message.reply_text("Ho joinato amo")
-    except Exception as e:
-        message.reply_text(f"Errore:\n<code>{e}</code>")
+    if message.from_user.id == admin1:
+        linkStr = ' '.join(message.command[1:])
+        linkFixed = linkStr.replace("+", "joinchat/")
+        try:
+            client.join_chat(linkFixed)
+            message.reply_text("Ho joinato amo")
+        except Exception as e:
+            message.reply_text(f"Errore:\n<code>{e}</code>")
+    else:
+        message.reply_text("Scusami ma non posso farlo, non ti conosco")
 
 # PIN
 @app.on_message(filters.command("pin", "!"))
