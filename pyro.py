@@ -74,10 +74,12 @@ directory = Path(__file__).absolute().parent
 cache = Path(f"{directory}/cache")
 cache.mkdir(parents=True, exist_ok=True)
 
+trusted_groups = [test_group,]
+
+
 # GENERATE TEXT
 @app.on_message(filters.command("ask", "!"))
 def textgen(client, message):
-    trusted_groups = []
     if message.chat.id in trusted_groups:
         try:
             input = message.text[4 + 1:]
@@ -86,7 +88,7 @@ def textgen(client, message):
             response = openai.Completion.create(
                 engine="text-curie-001",
                 prompt=f"{input}",
-                temperature=0.7,
+                temperature=0.9,
                 max_tokens=200,
                 top_p=1,
                 frequency_penalty=0,
@@ -1069,5 +1071,25 @@ def get(client, message):
                 pass
     except:
         pass
+
+    # CHATBOT
+    if message.chat.id in trusted_groups and message.text:
+        if random.randrange(300) == 1:
+            if not message.text.startswith(("!", "/")):
+                openai.api_key = openai_apikey
+                response = openai.Completion.create(
+                    engine="text-curie-001",
+                    prompt=f"Tu: {message.text}\nAmico:",
+                    temperature=0.7,
+                    max_tokens=50,
+                    top_p=1,
+                    frequency_penalty=0,
+                    presence_penalty=0
+                )
+
+                output = response['choices'][0]['text'].lstrip()
+            
+                message.reply_text(f"{output}")
+
 
 app.run()
