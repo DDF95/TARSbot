@@ -20,21 +20,24 @@ async def setter(client, message):
         trigger = message.text.split(" ")[1]
         reply = message.text[1+3+1 + len(trigger) + 1:]
 
-        if "\"" in trigger or "\"" in reply:
-            await message.reply("Pro tip: quotes are not needed in the trigger or reply!")
+        if len(trigger) > 3:
+            if "\"" in trigger or "\"" in reply:
+                await message.reply("Pro tip: quotes are not needed in the trigger or reply!")
 
-        with open("sets.json", 'r') as file:
-            file_data = json.load(file)
+            with open("sets.json", 'r') as file:
+                file_data = json.load(file)
 
-        if not file_data.get(str(message.chat.id)):
-            file_data[str(message.chat.id)] = {}
+            if not file_data.get(str(message.chat.id)):
+                file_data[str(message.chat.id)] = {}
 
-        file_data[str(message.chat.id)][trigger] = reply
+            file_data[str(message.chat.id)][trigger] = reply
 
-        with open("sets.json", 'w') as file:
-            json.dump(file_data, file, indent=4)
+            with open("sets.json", 'w') as file:
+                json.dump(file_data, file, indent=4)
 
-        await message.reply("Saved!")
+            await message.reply("Saved!")
+        else:
+            await message.reply("Error: the trigger must be at least 4 characters long!")
 
 
 @Client.on_message(filters.command("unset", "!"))
@@ -99,22 +102,25 @@ async def set_reaction(client, message):
 
         if "\"" in trigger or "\"" in reaction:
             await message.reply("Pro tip: quotes are not needed in the trigger or reaction!")
+            
+        if len(trigger) > 2:
+            if any(x in reaction for x in reactions):
+                with open("reactions.json", 'r') as file:
+                    file_data = json.load(file)
 
-        if any(x in reaction for x in reactions):
-            with open("reactions.json", 'r') as file:
-                file_data = json.load(file)
+                if not file_data.get(str(message.chat.id)):
+                    file_data[str(message.chat.id)] = {}
 
-            if not file_data.get(str(message.chat.id)):
-                file_data[str(message.chat.id)] = {}
+                file_data[str(message.chat.id)][trigger] = reaction
 
-            file_data[str(message.chat.id)][trigger] = reaction
+                with open("reactions.json", 'w') as file:
+                    json.dump(file_data, file, indent=4)
 
-            with open("reactions.json", 'w') as file:
-                json.dump(file_data, file, indent=4)
-
-            await message.reply("Saved!")
+                await message.reply("Saved!")
+            else:
+                await message.reply("Invalid reaction emoji! Use one of the following:\n\n" + "".join(reactions))
         else:
-            await message.reply("Invalid reaction emoji! Use one of the following:\n\n" + "".join(reactions))
+            await message.reply("Error: the trigger must be at least 3 characters long!")
 
 
 @Client.on_message(filters.command(["unsetreact", "unsetreacc"], "!"))
@@ -173,39 +179,42 @@ async def set_media(client, message):
         
         trigger = message.text.split(" ")[1]
 
-        media_link = message.reply_to_message.link
-        media_message_id = media_link.split("/")[5]
-        media_type = message.reply_to_message.media
+        if len(trigger) > 3:
+            media_link = message.reply_to_message.link
+            media_message_id = media_link.split("/")[5]
+            media_type = message.reply_to_message.media
 
-        with open("media.json", 'r') as file:
-            file_data = json.load(file)
+            with open("media.json", 'r') as file:
+                file_data = json.load(file)
 
-        if not file_data.get(str(message.chat.id)):
-            file_data[str(message.chat.id)] = {}
+            if not file_data.get(str(message.chat.id)):
+                file_data[str(message.chat.id)] = {}
 
-        if media_type == enums.MessageMediaType.PHOTO:
-            file_data[str(message.chat.id)][trigger] = f"photo {media_message_id}"
-        elif media_type == enums.MessageMediaType.VIDEO:
-            file_data[str(message.chat.id)][trigger] = f"video {media_message_id}"
-        elif media_type == enums.MessageMediaType.AUDIO:
-            file_data[str(message.chat.id)][trigger] = f"audio {media_message_id}"
-        elif media_type == enums.MessageMediaType.DOCUMENT:
-            file_data[str(message.chat.id)][trigger] = f"document {media_message_id}"
-        elif media_type == enums.MessageMediaType.STICKER:
-            file_data[str(message.chat.id)][trigger] = f"sticker {media_message_id}"
-        elif media_type == enums.MessageMediaType.VOICE:
-            file_data[str(message.chat.id)][trigger] = f"voice {media_message_id}"
-        elif media_type == enums.MessageMediaType.VIDEO_NOTE:
-            file_data[str(message.chat.id)][trigger] = f"video_note {media_message_id}"
-        elif media_type == enums.MessageMediaType.ANIMATION:
-            file_data[str(message.chat.id)][trigger] = f"animation {media_message_id}"
+            if media_type == enums.MessageMediaType.PHOTO:
+                file_data[str(message.chat.id)][trigger] = f"photo {media_message_id}"
+            elif media_type == enums.MessageMediaType.VIDEO:
+                file_data[str(message.chat.id)][trigger] = f"video {media_message_id}"
+            elif media_type == enums.MessageMediaType.AUDIO:
+                file_data[str(message.chat.id)][trigger] = f"audio {media_message_id}"
+            elif media_type == enums.MessageMediaType.DOCUMENT:
+                file_data[str(message.chat.id)][trigger] = f"document {media_message_id}"
+            elif media_type == enums.MessageMediaType.STICKER:
+                file_data[str(message.chat.id)][trigger] = f"sticker {media_message_id}"
+            elif media_type == enums.MessageMediaType.VOICE:
+                file_data[str(message.chat.id)][trigger] = f"voice {media_message_id}"
+            elif media_type == enums.MessageMediaType.VIDEO_NOTE:
+                file_data[str(message.chat.id)][trigger] = f"video_note {media_message_id}"
+            elif media_type == enums.MessageMediaType.ANIMATION:
+                file_data[str(message.chat.id)][trigger] = f"animation {media_message_id}"
+            else:
+                await message.reply("Invalid media type!")
+            
+            with open("media.json", 'w') as file:
+                json.dump(file_data, file, indent=4)
+
+            await message.reply("Saved!")
         else:
-            await message.reply("Invalid media type!")
-        
-        with open("media.json", 'w') as file:
-            json.dump(file_data, file, indent=4)
-
-        await message.reply("Saved!")
+            await message.reply("Error: the trigger must be at least 4 characters long!")
 
 
 @Client.on_message(filters.command("unsetmedia", "!"))
@@ -260,6 +269,8 @@ async def media_list(client, message):
 
 @Client.on_message(filters.text)
 async def getter(client, message):
+    word_list = message.text.split(" ")
+
     # Text
     try:
         with open("sets.json", 'r') as sets_file:
@@ -267,8 +278,9 @@ async def getter(client, message):
         
         if sets_data.get(str(message.chat.id)):
             for key, value in sets_data[str(message.chat.id)].items():
-                if key in message.text:
+                if key in word_list:
                     await message.reply(value)
+                    break
     except:
         pass
     # TODO: maybe only check for the first word of the message, not for all words in the message. Right now it could be spammy if you use a lot of sets.
@@ -280,8 +292,9 @@ async def getter(client, message):
         
         if reacts_data.get(str(message.chat.id)):
             for key, value in reacts_data[str(message.chat.id)].items():
-                if key in message.text:
+                if key in word_list:
                     await client.send_reaction(chat_id=message.chat.id, message_id=message.id, emoji=value)
+                    break
     except:
         pass
 
@@ -292,7 +305,7 @@ async def getter(client, message):
 
         if media_data.get(str(message.chat.id)):
             for key, value in media_data[str(message.chat.id)].items():
-                if key in message.text:
+                if key in word_list:
                     media_message_id = media_data[str(message.chat.id)].get(key).split()[1]
                     media_message = await client.get_messages(chat_id=message.chat.id, message_ids=int(media_message_id))
 
@@ -314,5 +327,6 @@ async def getter(client, message):
                         await message.reply_animation(animation=media_message.animation.file_id)
                     else:
                         pass
+                    break
     except:
         pass
