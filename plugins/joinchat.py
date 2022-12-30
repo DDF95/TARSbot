@@ -16,6 +16,9 @@ async def join_chat(client, message):
         await message.reply("Usage: `!join <chat or @handle>`", parse_mode=enums.ParseMode.MARKDOWN)
     else:
         chat_to_join = message.command[1].replace("+", "joinchat/")
+        chat_to_join = chat_to_join.replace("@", "")
+        if "joinchat" not in chat_to_join:
+            chat_to_join = chat_to_join.replace("https://t.me/", "")
         try:
             chat_joined = await client.join_chat(chat_to_join)
             if chat_joined:
@@ -31,13 +34,18 @@ async def join_chat(client, message):
 
 
 @Client.on_message(filters.command("leave", "!"))
-async def leave_chat(client, message):
+async def leave_the_chat(client, message):
     if len(message.command) == 1:
         await client.leave_chat(message.chat.id)
     else:
         if message.from_user.id == ADMIN1_ID:
             try:
-                await client.leave_chat(int(message.command[1]))
+                chat_to_leave = message.command[1].replace("+", "joinchat/")
+                chat_to_leave = chat_to_leave.replace("@", "")
+                if "joinchat" not in chat_to_leave:
+                    chat_to_leave = chat_to_leave.replace("https://t.me/", "")
+                id_to_leave = await client.get_chat(chat_to_leave)
+                await client.leave_chat(int(id_to_leave.id))
                 await message.reply("Left the group/channel.")
             except Exception as e:
                 await message.reply(f"Error:\n<code>{e}</code>")
