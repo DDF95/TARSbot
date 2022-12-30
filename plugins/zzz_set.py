@@ -4,7 +4,7 @@ import os
 from pyrogram import Client, enums, filters
 
 
-reactions = ["👍", "👎", "❤️", "🔥", "🎉", "🤩", "😱", "😁", "😢", "💩", "🤮", "🤬", "🤯", "🤔", "🥰", "👏", "🙏"]
+reactions = ["👍", "👎", "❤️", "🔥", "🎉", "🤩", "😱", "😁", "😢", "💩", "🤮", "🤬", "🤯", "🤔", "🥰", "👏", "🙏", "👌", "🕊️", "🤡", "🥱", "🥴", "😍", "🐳", "❤️‍🔥", "🌚", "🌭", "💯", "🤣", "⚡️", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋", "🖕", "😈", "😴", "😭", "🤓", "👻", "👨‍💻", "👀", "🎃", "🙈", "😇", "😨", "🤝", "✍️", "🤗", "🫡", "🎅", "🎄", "☃️"]
 
 
 # Text
@@ -87,11 +87,31 @@ async def sets_list(client, message):
         await message.reply("No sets found for this chat! Use `!set <trigger> <reply>` to create one.", parse_mode=enums.ParseMode.MARKDOWN)
 
 
+@Client.on_message(filters.command("unsetall", "!"))
+async def unset_all(client, message):
+    if not os.path.isfile("sets.json"):
+        with open("sets.json", "w") as f:
+            json.dump({}, f)
+
+    with open("sets.json", 'r') as file:
+        file_data = json.load(file)
+
+    if file_data.get(str(message.chat.id)):
+        del file_data[str(message.chat.id)]
+
+        with open("sets.json", 'w') as file:
+            json.dump(file_data, file, indent=4)
+
+        await message.reply("All sets deleted!")
+    else:
+        await message.reply("No sets found for this chat! Use `!set <trigger> <reply>` to create one.", parse_mode=enums.ParseMode.MARKDOWN)
+
+
 # Reactions
 @Client.on_message(filters.command(["setreact", "setreacc"], "!"))
 async def set_reaction(client, message):
     if len(message.command) == 1 or len(message.command) == 2:
-        await message.reply("Usage: `!setreact <trigger> <reaction emoji>`", parse_mode=enums.ParseMode.MARKDOWN)
+        await message.reply(f"Usage: `!setreact <trigger> <reaction emoji>`\n\nAvailable reaction emojis:\n{', '.join(reactions)}", parse_mode=enums.ParseMode.MARKDOWN)
     else:
         if not os.path.isfile("reactions.json"):
             with open("reactions.json", "w") as f:
@@ -295,8 +315,6 @@ async def getter(client, message):
                 if key in word_list:
                     await client.send_reaction(chat_id=message.chat.id, message_id=message.id, emoji=value)
                     break
-    except:
-        pass
 
     # Media
     try:
