@@ -1,293 +1,247 @@
 import random
+import re
 from configparser import ConfigParser
 
-import openai
 from pyrogram import Client, enums, filters
 
+import openai
 
-@Client.on_message(filters.command("askdavinci", "!"))
-async def askdavinci(client, message):
-    cfg = ConfigParser(interpolation=None)
-    cfg.read("config.ini")
 
-    openai_values = cfg.items("openai")
+async def openai_response(engine, prompt, temperature, max_tokens, top_p, frequency_penalty, presence_penalty, client, message):
+    try:
+        cfg = ConfigParser(interpolation=None)
+        cfg.read("config.ini")
+        openai_apikeys = cfg.items("openai_apikeys")
+        api_key = random.choice(list(openai_apikeys))[1]
+        openai.api_key = api_key
+        response = openai.Completion.create(
+            engine=engine,
+            prompt=prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty
+        )
+        return response
+    except Exception as e:
+        await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {api_key[-5:]}")
 
-    RANDOM_API_KEY = random.choice(list(openai_values))[1]
 
-    premium_users = [int(cfg["admins"]["admin1"]), 8093420, 87526036, 98188090, 22795657, 19778723, 32410719, 1753509701, 102889983, 173120171, 474799562, 1735623047, 104117139, 149844390, 1155237714, 578482472, 481519570, 95357956, 573963993, 1478812362, 319719099, 178173240, 518619034, 156346143, 47107732, 378844752, 5448250840, 142908761, 361368699, 212531450, 327414309, 1310374399, 1993079742, 228034043]
-    
-    if message.from_user.id in premium_users:
-        try:
-            openai.api_key = RANDOM_API_KEY
-            response = openai.Completion.create(
-                engine="text-davinci-001",
-                prompt=message.text[1+10+1:],
-                temperature=0.9,
-                max_tokens=200,
-                top_p=1,
-                frequency_penalty=0,
-                presence_penalty=0.6
-            )
+@Client.on_message(filters.regex(r"(?i)^!ask(\w+)"))
+async def ask(client, message):
+    engine = re.match(r"(?i)^!ask(\w+)", message.text).group(1).lower()
+    prompt = message.text[1+3+len(engine)+1:]
+
+    if engine == "davinci":
+        cfg = ConfigParser(interpolation=None)
+        cfg.read("config.ini")
+        premium_users_str = cfg.get("openai_premium_users", "ids")
+        premium_users = [int(id) for id in premium_users_str.split(", ")]
         
-            await message.reply(text=f"**{message.text[1+10+1:]}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
-        except Exception as e:
-            await message.reply(f"{e}")
-            await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {RANDOM_API_KEY[-5:]}")
+        if message.from_user.id in premium_users:
+            response = await openai_response("text-davinci-003", prompt, 0.9, 300, 1, 0, 0.6, client, message)
+            await message.reply(text=f"**{prompt}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+        else:
+            await message.reply("Sorry, you're not premium. Register on openai.com and send the `API key` using `!apikey <apikey>`. It's free!\n\nAlternatively, use `!askcurie`. It's less intelligent but it gets the job done.")
+
+    elif engine == "curie":
+        response = await openai_response("text-curie-001", prompt, 0.9, 300, 1, 0, 0.6, client, message)
+        await message.reply(text=f"**{prompt}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+
+    elif engine == "babbage":
+        response = await openai_response("text-babbage-001", prompt, 0.9, 300, 1, 0, 0.6, client, message)
+        await message.reply(text=f"**{prompt}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+
+    elif engine == "ada":
+        response = await openai_response("text-ada-001", prompt, 0.9, 300, 1, 0, 0.6, client, message)
+        await message.reply(text=f"**{prompt}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+
     else:
-        await message.reply("Sorry, you're not premium. Register on openai.com and give the `API key` to @diddieffe. It's free!\n\nAlternatively, use `!askcurie`. It's less intelligent but it gets the job done.")
-
-
-@Client.on_message(filters.command("askcurie", "!"))
-async def askcurie(client, message):
-    cfg = ConfigParser(interpolation=None)
-    cfg.read("config.ini")
-
-    openai_values = cfg.items("openai")
-
-    RANDOM_API_KEY = random.choice(list(openai_values))[1]
-
-    try:
-        openai.api_key = RANDOM_API_KEY
-        response = openai.Completion.create(
-            engine="text-curie-001",
-            prompt=message.text[1+8+1:],
-            temperature=0.9,
-            max_tokens=200,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0.6
+        await message.reply(
+            text="Usage:\n"
+            "• `!askdavinci <text>` - the smartest engine (requires premium, infos down below)\n"
+            "• `!askcurie <text>`\n"
+            "• `!askbabbage <text>`\n"
+            "• `!askada <text>` - the least intelligent engine\n\n"
+            "**Premium (actually it's FREE!):**\n"
+            "The DaVinci engine requires more computational power and is more intelligent than the others. It's free to use, but you need to register an account on openai.com and send the `API key` using `!apikey <apikey>`. This won't cost you anything, you don't even need credit cards or anything like that.",
+            parse_mode=enums.ParseMode.MARKDOWN
         )
-    
-        await message.reply(text=f"**{message.text[1+8+1:]}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
-    except Exception as e:
-        await message.reply(f"{e}")
-        await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {RANDOM_API_KEY[-5:]}")
-
-
-@Client.on_message(filters.command("askbabbage", "!"))
-async def askbabbage(client, message):
-    cfg = ConfigParser(interpolation=None)
-    cfg.read("config.ini")
-
-    openai_values = cfg.items("openai")
-
-    RANDOM_API_KEY = random.choice(list(openai_values))[1]
-
-    try:
-        openai.api_key = RANDOM_API_KEY
-        response = openai.Completion.create(
-            engine="text-babbage-001",
-            prompt=message.text[1+10+1:],
-            temperature=0.9,
-            max_tokens=200,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0.6
-        )
-    
-        await message.reply(text=f"**{message.text[1+10+1:]}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
-    except Exception as e:
-        await message.reply(f"{e}")
-        await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {RANDOM_API_KEY[-5:]}")
-
-
-@Client.on_message(filters.command("askada", "!"))
-async def askada(client, message):
-    cfg = ConfigParser(interpolation=None)
-    cfg.read("config.ini")
-
-    openai_values = cfg.items("openai")
-
-    RANDOM_API_KEY = random.choice(list(openai_values))[1]
-
-    try:
-        openai.api_key = RANDOM_API_KEY
-        response = openai.Completion.create(
-            engine="text-ada-001",
-            prompt=message.text[1+6+1:],
-            temperature=0.9,
-            max_tokens=200,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0.6
-        )
-    
-        await message.reply(text=f"**{message.text[1+6+1:]}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
-    except Exception as e:
-        await message.reply(f"{e}")
-        await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {RANDOM_API_KEY[-5:]}")
-
-
-@Client.on_message(filters.command("ask", "!"))
-async def ask_help(client, message):
-    await message.reply(
-        text="Usage:\n"
-        "• `!askdavinci <text>` - the smartest engine (requires premium, infos down below)\n"
-        "• `!askcurie <text>`\n"
-        "• `!askbabbage <text>`\n"
-        "• `!askada <text>` - the least intelligent engine\n\n"
-        "**Premium (actually it's FREE!):**\n"
-        "The DaVinci engine requires more computational power and is more intelligent than the others. It's free to use, but you need to register an account on openai.com and give the `API key` to @diddieffe. This won't cost you anything, you don't even need credit cards or anything like that.",
-        parse_mode=enums.ParseMode.MARKDOWN,
-    )
 
 
 @Client.on_message(filters.command("continue", "!"))
 async def continue_text(client, message):
-    if len(message.command) == 1 or len(message.command) >= 3 and not message.reply_to_message.text:
-        await message.reply(
-            text="Usage: `!continue <engine>` in reply to a text message\n\n"
-            "Available engines:\n\n"
+    usage = ("Usage: `!continue <engine>` in reply to a text message.\n\n"
+             "Availvable engines:\n"
             "• `davinci` (requires premium, use `!ask` to learn more\n"
             "• `curie`\n"
             "• `babbage`\n"
-            "• `ada`",
-            parse_mode=enums.ParseMode.MARKDOWN
-        )
+            "• `ada`")
+    
+    if len(message.command) == 1 or len(message.command) >= 3 and not message.reply_to_message.text:
+        await message.reply(text=usage, parse_mode=enums.ParseMode.MARKDOWN)
 
     else:
-        cfg = ConfigParser(interpolation=None)
-        cfg.read("config.ini")
+        if message.reply_to_message.text:
+            prompt = message.reply_to_message.text
+        elif message.reply_to_message.caption:
+            prompt = message.reply_to_message.caption
 
-        openai_values = cfg.items("openai")
-
-        RANDOM_API_KEY = random.choice(list(openai_values))[1]
-
-        if message.command[1] == "davinci":
-            premium_users = [int(cfg["admins"]["admin1"]), 8093420, 87526036, 98188090, 22795657, 19778723, 32410719, 1753509701, 102889983, 173120171, 474799562, 1735623047, 104117139, 149844390, 1155237714, 578482472, 481519570, 95357956, 573963993, 1478812362, 319719099, 178173240, 518619034, 156346143, 47107732, 378844752, 5448250840, 142908761, 361368699, 212531450, 327414309, 1310374399, 1993079742, 228034043]
+        if message.command[1].lower() == "davinci":
+            cfg = ConfigParser(interpolation=None)
+            cfg.read("config.ini")
+            premium_users_str = cfg.get("openai_premium_users", "ids")
+            premium_users = [int(id) for id in premium_users_str.split(", ")]
             
             if message.from_user.id in premium_users:
-                try:
-                    openai.api_key = RANDOM_API_KEY
-                    response = openai.Completion.create(
-                        engine="text-davinci-001",
-                        prompt=message.reply_to_message.text,
-                        temperature=0.9,
-                        max_tokens=200,
-                        top_p=1,
-                        frequency_penalty=0,
-                        presence_penalty=0.6
-                    )
-                
-                    await message.reply(text=f"**{message.reply_to_message.text}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
-                except Exception as e:
-                    await message.reply(f"{e}")
-                    await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {RANDOM_API_KEY[-5:]}")
-
-        elif message.command[1] == "curie":
-            try:
-                openai.api_key = RANDOM_API_KEY
-                response = openai.Completion.create(
-                    engine="text-curie-001",
-                    prompt=message.reply_to_message.text,
-                    temperature=0.9,
-                    max_tokens=200,
-                    top_p=1,
-                    frequency_penalty=0,
-                    presence_penalty=0.6
-                )
-            
-                await message.reply(text=f"**{message.reply_to_message.text}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
-            except Exception as e:
-                await message.reply(f"{e}")
-                await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {RANDOM_API_KEY[-5:]}")
-
-        elif message.command[1] == "babbage":
-            try:
-                openai.api_key = RANDOM_API_KEY
-                response = openai.Completion.create(
-                    engine="text-babbage-001",
-                    prompt=message.reply_to_message.text,
-                    temperature=0.9,
-                    max_tokens=200,
-                    top_p=1,
-                    frequency_penalty=0,
-                    presence_penalty=0.6
-                )
-            
-                await message.reply(text=f"**{message.reply_to_message.text}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
-            except Exception as e:
-                await message.reply(f"{e}")
-                await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {RANDOM_API_KEY[-5:]}")
-            
-        elif message.command[1] == "ada":
-            try:
-                openai.api_key = RANDOM_API_KEY
-                response = openai.Completion.create(
-                    engine="text-ada-001",
-                    prompt=message.reply_to_message.text,
-                    temperature=0.9,
-                    max_tokens=200,
-                    top_p=1,
-                    frequency_penalty=0,
-                    presence_penalty=0.6
-                )
-            
-                await message.reply(text=f"**{message.reply_to_message.text}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
-            except Exception as e:
-                await message.reply(f"{e}")
-                await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {RANDOM_API_KEY[-5:]}")
+                response = await openai_response("text-davinci-003", prompt, 0.9, 300, 1, 0, 0.6, client, message)
+                await message.reply(text=f"**{prompt}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+            else:
+                await message.reply("Sorry, you're not premium. Register on openai.com and send the `API key` using `!apikey <apikey>`. It's free!\n\nAlternatively, use `!askcurie`. It's less intelligent but it gets the job done.")
         
+        elif message.command[1].lower() == "curie":
+            response = await openai_response("text-curie-001", prompt, 0.9, 300, 1, 0, 0.6, client, message)
+            await message.reply(text=f"**{prompt}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+        
+        elif message.command[1].lower() == "babbage":
+            response = await openai_response("text-babbage-001", prompt, 0.9, 300, 1, 0, 0.6, client, message)
+            await message.reply(text=f"**{prompt}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+
+        elif message.command[1].lower() == "ada":
+            response = await openai_response("text-ada-001", prompt, 0.9, 300, 1, 0, 0.6, client, message)
+            await message.reply(text=f"**{prompt}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+
         else:
-            await message.reply(
-                text="Usage: `!continue <engine>` in reply to a text message\n\n"
-                "Available engines:\n\n"
-                "• `davinci` (requires premium, use `!ask` to learn more\n"
-                "• `curie`\n"
-                "• `babbage`\n"
-                "• `ada`",
-                parse_mode=enums.ParseMode.MARKDOWN
-            )
+            await message.reply(text=usage, parse_mode=enums.ParseMode.MARKDOWN)
 
 
 @Client.on_message(filters.command("face", "!"))
 async def face(client, message):
-    try:
-        import requests
-        from io import BytesIO
-        face_img = requests.get("https://thispersondoesnotexist.com/image").content
-        
-        identity_data = requests.get("https://api.namefake.com/")
-        name = identity_data.json()['name']
-        age = str(random.randrange(100))
-
-        await message.reply_photo(photo=BytesIO(face_img), caption=f"Name: {name}\nAge: {age}")
-
-    except Exception as e:
-        await message.reply(f"Error: `{e}`")
+    await message.reply("This command is currently disabled due to a server error. The developer is working on a fix.")
 
 
 @Client.on_message(filters.command("faceai", "!"))
 async def faceai(client, message):
-    try:
-        import requests
-        from io import BytesIO
-        face_img = requests.get("https://thispersondoesnotexist.com/image").content
+    await message.reply("This command is currently disabled due to a server error. The developer is working on a fix.")
+
+
+@Client.on_message(filters.command("apikey", ["!", "/"]))
+async def apikey(client, message):
+    cfg = ConfigParser(interpolation=None)
+    cfg.read("config.ini")
+
+    if len(message.command) == 1:
+        await message.reply(text="Usage: `!apikey <apikey>`", parse_mode=enums.ParseMode.MARKDOWN)
+        await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Invalid API key from {message.from_user.first_name} (`{message.from_user.id}`):\n\n`{message.text}`", parse_mode=enums.ParseMode.MARKDOWN)
+    else:
+        if len(message.command[1]) == 51:
+            text = ""
+            try:
+                openai.api_key = message.command[1]
+                response = openai.Completion.create(
+                    engine="text-ada-001",
+                    prompt="Tell me a fun fact:",
+                    max_tokens=50, temperature=0.9, top_p=1, frequency_penalty=0, presence_penalty=0
+                )
+            except:
+                text = "error"
+
+            if text == "error":
+                await message.reply(text="I tested the API key you sent and it doesn't seem to work. These are the possible reasons:\n- it could be expired (if you registered more than 3 months ago on openai.com);\n- there's no more credit left on the account;\n- the API key is invalid;\n- the servers are currently down, try again later.")
+            else:
+                from datetime import datetime
+                user_id = str(message.from_user.id)
+                date = datetime.today().strftime('%d%m%Y')
+                apikey = message.command[1]
+
+                ids = cfg.get('openai_premium_users', 'ids')
+                cfg.set('openai_premium_users', 'ids', f"{ids}, {user_id}")
+                cfg.set("openai_apikeys", f"{user_id}_{date}", apikey)
+
+                with open("config.ini", "w") as configfile:
+                    cfg.write(configfile)
+
+                await message.reply(text="API key set successfully! You can now use `!askdavinci` and `!continue davinci` to get more advanced responses.")
+                await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"New API key from {message.from_user.first_name} (`{message.from_user.id}`):\n\n`{message.command[1]}`\n\nTest Response:\n**Tell me a fun fact:**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+        else:
+            await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Invalid API key from {message.from_user.first_name} (`{message.from_user.id}`):\n\n`{message.command[1]}`", parse_mode=enums.ParseMode.MARKDOWN)
+            if message.command[1].startswith("org-"):
+                await message.reply(text="You copied the wrong key. After logging in on openai.com, click on your profile picture in the top right corner, then click on **View API Keys**. You'll see a key that starts with `sk-`, copy that one.", parse_mode=enums.ParseMode.MARKDOWN)
+            else:
+                await message.reply(text="Invalid API key. After logging in on openai.com, click on your profile picture in the top right corner, then click on **View API Keys**. You'll see a key that starts with `sk-`, copy that one.", parse_mode=enums.ParseMode.MARKDOWN)
+
+
+@Client.on_message(filters.command("addpremium", "!"))
+async def addpremium(client, message):
+    cfg = ConfigParser(interpolation=None)
+    cfg.read("config.ini")
+
+    if len(message.command) == 1:
+        await message.reply(text="Usage: `!addpremium <user_id> <date in ggmmyyyy> <apikey>`", parse_mode=enums.ParseMode.MARKDOWN)
+    else:
+        if message.from_user.id == int(cfg["admins"]["admin1"]):
+            user_id = message.command[1]
+            date = message.command[2]
+            apikey = message.command[3]
+
+            ids = cfg.get('openai_premium_users', 'ids')
+            cfg.set('openai_premium_users', 'ids', f"{ids}, {user_id}")
+            cfg.set("openai_apikeys", f"{user_id}_{date}", apikey)
+
+            with open("config.ini", "w") as configfile:
+                cfg.write(configfile)
+            
+            await message.reply(text="Premium user added.")
+
+
+@Client.on_message(filters.command("apikeys", "!"))
+async def apikeys(client, message):
+    cfg = ConfigParser(interpolation=None)
+    cfg.read("config.ini")
+
+    if message.from_user.id == int(cfg["admins"]["admin1"]):
+        apikeys = cfg.items("openai_apikeys")
+        apikeys_str = ""
+
+        for i, key in enumerate(apikeys, start=1):
+            apikeys_str += f"{i}. `{key[0]}` = `{key[1]}`\n\n"
         
-        identity_data = requests.get("https://api.namefake.com/")
-        name = identity_data.json()['name']
-        age = str(random.randrange(100))
+        await message.reply(text=f"{apikeys_str}", parse_mode=enums.ParseMode.MARKDOWN)
 
-        cfg = ConfigParser(interpolation=None)
-        cfg.read("config.ini")
 
-        openai_values = cfg.items("openai")
+@Client.on_message(filters.command("delapikey", "!"))
+async def delapikey(client, message):
+    cfg = ConfigParser(interpolation=None)
+    cfg.read("config.ini")
 
-        RANDOM_API_KEY = random.choice(list(openai_values))[1]
+    if len(message.command) == 1:
+        await message.reply(text="Usage: `!delapikey <index>`", parse_mode=enums.ParseMode.MARKDOWN)
+    else:
+        if message.from_user.id == int(cfg["admins"]["admin1"]):
+            apikeys = cfg.items("openai_apikeys")
+            index = int(message.command[1])
 
-        openai.api_key = RANDOM_API_KEY
-        response = openai.Completion.create(
-            engine="text-curie-001",
-            prompt=f"Name: {name}\nAge: {age}\nWeird biography:",
-            temperature=0.7,
-            max_tokens=200,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0
-        )
+            if index <= len(apikeys):
+                cfg.remove_option("openai_apikeys", apikeys[index-1][0])
 
-        await message.reply_photo(photo=BytesIO(face_img), caption=f"<b>Name:</b> {name}\n<b>Age:</b> {age}\n\n{response['choices'][0]['text'].strip()}")
+                with open("config.ini", "w") as configfile:
+                    cfg.write(configfile)
+                
+                await message.reply(text="API key deleted.")
+            else:
+                await message.reply(text="Invalid index.")
+
+
+@Client.on_message(filters.command("openaihelp", "!"))
+async def openaihelp(client, message):
+    cfg = ConfigParser(interpolation=None)
+    cfg.read("config.ini")
     
-    except Exception as e:
-        await message.reply(f"{e}")
-        await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {RANDOM_API_KEY[-5:]}")
+    if message.from_user.id == int(cfg["admins"]["admin1"]):
+        await message.reply("OpenAI admin commands:\n\n"
+                            "• `!addpremium <user_id> <date in ggmmyyyy> <apikey>`\n"
+                            "• `!apikeys`\n"
+                            "• `!delapikey <index>`\n",
+                            parse_mode=enums.ParseMode.MARKDOWN
+        )
