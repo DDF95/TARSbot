@@ -147,6 +147,7 @@ async def apikey(client, message):
                 )
             except Exception as e:
                 await message.reply(text="I tested the API key you sent and it doesn't seem to work. These are the possible reasons:\n- it could be expired (if you registered more than 3 months ago on openai.com);\n- there's no more credit left on the account;\n- the API key is invalid;\n- the servers are currently down, try again later.")
+                await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Invalid API key from {message.from_user.first_name} (`{message.from_user.id}`):\n\n`{message.text}`", parse_mode=enums.ParseMode.MARKDOWN)
                 return
 
             from datetime import datetime
