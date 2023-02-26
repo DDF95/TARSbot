@@ -138,7 +138,6 @@ async def apikey(client, message):
         await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Invalid API key from {message.from_user.first_name} (`{message.from_user.id}`):\n\n`{message.text}`", parse_mode=enums.ParseMode.MARKDOWN)
     else:
         if len(message.command[1]) == 51:
-            text = ""
             try:
                 openai.api_key = message.command[1]
                 response = openai.Completion.create(
@@ -146,26 +145,24 @@ async def apikey(client, message):
                     prompt="Tell me a fun fact:",
                     max_tokens=50, temperature=0.9, top_p=1, frequency_penalty=0, presence_penalty=0
                 )
-            except:
-                text = "error"
-
-            if text == "error":
+            except Exception as e:
                 await message.reply(text="I tested the API key you sent and it doesn't seem to work. These are the possible reasons:\n- it could be expired (if you registered more than 3 months ago on openai.com);\n- there's no more credit left on the account;\n- the API key is invalid;\n- the servers are currently down, try again later.")
-            else:
-                from datetime import datetime
-                user_id = str(message.from_user.id)
-                date = datetime.today().strftime('%d%m%Y')
-                apikey = message.command[1]
+                return
 
-                ids = cfg.get('openai_premium_users', 'ids')
-                cfg.set('openai_premium_users', 'ids', f"{ids}, {user_id}")
-                cfg.set("openai_apikeys", f"{user_id}_{date}", apikey)
+            from datetime import datetime
+            user_id = str(message.from_user.id)
+            date = datetime.today().strftime('%d%m%Y')
+            apikey = message.command[1]
 
-                with open("config.ini", "w") as configfile:
-                    cfg.write(configfile)
+            ids = cfg.get('openai_premium_users', 'ids')
+            cfg.set('openai_premium_users', 'ids', f"{ids}, {user_id}")
+            cfg.set("openai_apikeys", f"{user_id}_{date}", apikey)
 
-                await message.reply(text="API key set successfully! You can now use `!askdavinci` and `!continue davinci` to get more advanced responses.")
-                await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"New API key from {message.from_user.first_name} (`{message.from_user.id}`):\n\n`{message.command[1]}`\n\nTest Response:\n**Tell me a fun fact:**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+            with open("config.ini", "w") as configfile:
+                cfg.write(configfile)
+
+            await message.reply(text="API key set successfully! You can now use `!askdavinci` and `!continue davinci` to get more advanced responses.")
+            await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"New API key from {message.from_user.first_name} (`{message.from_user.id}`):\n\n`{message.command[1]}`\n\nTest Response:\n**Tell me a fun fact:**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
         else:
             await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Invalid API key from {message.from_user.first_name} (`{message.from_user.id}`):\n\n`{message.command[1]}`", parse_mode=enums.ParseMode.MARKDOWN)
             if message.command[1].startswith("org-"):
