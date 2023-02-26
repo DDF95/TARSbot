@@ -87,7 +87,9 @@ async def continue_text(client, message):
             prompt = message.reply_to_message.text
         elif message.reply_to_message.caption:
             prompt = message.reply_to_message.caption
-
+        else:
+            prompt = f"Write a story about {message.from_user.first_name} shitting his pants."
+            
         if message.command[1].lower() == "davinci":
             cfg = ConfigParser(interpolation=None)
             cfg.read("config.ini")
