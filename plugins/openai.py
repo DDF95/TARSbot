@@ -25,6 +25,7 @@ async def openai_response(engine, prompt, temperature, max_tokens, top_p, freque
         )
         return response
     except Exception as e:
+        await message.reply(f"Error: {e}")
         await client.send_message(chat_id=int(cfg["admins"]["admin1"]), text=f"Broken OpenAI API key: {api_key[-5:]}")
 
 
