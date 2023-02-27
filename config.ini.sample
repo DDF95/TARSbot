@@ -38,3 +38,7 @@ openai_apikey =
 
 [openai_premium_users]
 ids = 
+
+[spotify]
+sp_dc =
+sp_key =
