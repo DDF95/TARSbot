@@ -4,7 +4,7 @@ import os
 from pyrogram import Client, enums, filters
 
 
-reactions = ["👍", "👎", "❤️", "🔥", "🎉", "🤩", "😱", "😁", "😢", "💩", "🤮", "🤬", "🤯", "🤔", "🥰", "👏", "🙏", "👌", "🕊️", "🤡", "🥱", "🥴", "😍", "🐳", "❤️‍🔥", "🌚", "🌭", "💯", "🤣", "⚡️", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋", "🖕", "😈", "😴", "😭", "🤓", "👻", "👨‍💻", "👀", "🎃", "🙈", "😇", "😨", "🤝", "✍️", "🤗", "🫡", "🎅", "🎄", "☃️"]
+reactions = ["👍", "👎", "❤️", "🔥", "🎉", "🤩", "😱", "😁", "😢", "💩", "🤮", "🤬", "🤯", "🤔", "🥰", "👏", "🙏", "👌", "🕊️", "🤡", "🥱", "🥴", "😍", "🐳", "❤️‍🔥", "🌚", "🌭", "💯", "🤣", "⚡️", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋", "🖕", "😈", "😴", "😭", "🤓", "👻", "👨‍💻", "👀", "🎃", "🙈", "😇", "😨", "🤝", "✍️", "🤗", "🫡", "🎅", "🎄", "☃️", "💅", "🤪", "🗿", "🆒", "💘", "🙉", "🦄", "😘", "💊", "🙊", "😎", "👾", "🤷‍♂️", "🤷", "🤷‍♀️", "😡"]
 
 
 # Text
@@ -287,7 +287,7 @@ async def media_list(client, message):
         await message.reply("No media found for this chat! Use `!setmedia <trigger>` to create one.", parse_mode=enums.ParseMode.MARKDOWN)
 
 
-@Client.on_message(filters.text)
+@Client.on_message(filters.text, group=1)
 async def getter(client, message):
     word_list = message.text.split(" ")
 
@@ -315,6 +315,8 @@ async def getter(client, message):
                 if key in word_list:
                     await client.send_reaction(chat_id=message.chat.id, message_id=message.id, emoji=value)
                     break
+    except Exception as e:
+        print(e)
 
     # Media
     try:
