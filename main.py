@@ -16,6 +16,7 @@ API_ID = cfg.get("pyrogram", "api_id")
 API_HASH = cfg.get("pyrogram", "api_hash")
 
 ADMIN1_ID = int(cfg.get("admins", "admin1"))
+ADMIN2_ID = int(cfg.get("admins", "admin2"))
 
 plugins = dict(root="plugins")
 app = Client(name="TARSbot", api_id=API_ID, api_hash=API_HASH, plugins=plugins)
@@ -30,21 +31,19 @@ async def show_plugins(client, message):
     await message.reply(f"**Plugins:**\n{all_plugins}")
 
 
-@app.on_message(filters.command("restart", ["!", "/"]))
+@app.on_message(filters.command("restart", "!"))
 async def restart(client, message):
-    if message.from_user.id == ADMIN1_ID:
+    if message.from_user.id == ADMIN1_ID or message.from_user.id == ADMIN2_ID:
         args = sys.argv[:]
         args.insert(0, sys.executable)
         os.chdir(os.getcwd())
         await message.reply("Restarting...")
         os.execv(sys.executable, args)
-    else:
-        await message.reply("You are not an admin!")
 
 
 @app.on_message(filters.command("version", "!"))
 async def version(client, message):
-    await message.reply(f"TARS 3.0.1\nhttps://github.com/DDF95/TARSbot")
+    await message.reply(f"TARS 3.1.0\nhttps://github.com/DDF95/TARSbot")
 
 
 @app.on_message(filters.command("print", "!"))
@@ -58,6 +57,7 @@ async def print_message(client, message):
 @app.on_message(filters.command("help", ["!", "/", "."]))
 async def help(client, message):
     await message.reply("""**OpenAI commands**
+    • `!chat <text>`: Talk to ChatGPT.
     • `!askdavinci <text>`
     • `!askcurie <text>`
     • `!askbabbage <text>`
@@ -124,6 +124,31 @@ async def help(client, message):
     • `!watch <query>`: Searches movies/TV shows on JustWatch and returns a list of links (credits: Trifase).""",
     parse_mode=enums.ParseMode.MARKDOWN
     )
+
+
+@app.on_message(filters.command("ping", ["!", "/"]))
+async def ping(client, message):
+    import time
+    s = time.time()
+    start = time.perf_counter()
+    m = await message.reply("Pong!")
+    end = time.perf_counter()
+    await m.edit(f"[{s}] Pong! `{round((end - start) * 1000)}ms`")
+
+
+@app.on_message(filters.command("whisper", "!"))
+async def whisper(client, message):
+    if message.from_user.id == ADMIN1_ID:
+        if len(message.command) > 1:
+            try:
+                user_id = int(message.command[1])
+                text = message.text[1+7+1+len(message.command[1])+1:]
+                await client.send_message(user_id, f"**Message from the bot's owner:**\n\n{text}", parse_mode=enums.ParseMode.MARKDOWN)
+                await message.reply("Sent.")
+            except Exception as e:
+                await message.reply(f"Error: `{e}`")
+        else:
+            await message.reply("Usage: `!whisper <id> <text>`")
 
 
 asyncio(app.run())
