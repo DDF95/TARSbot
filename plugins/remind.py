@@ -74,49 +74,69 @@ async def remind(client, message):
             "`!delallreminders` to delete all reminders.",
             parse_mode=enums.ParseMode.MARKDOWN,
         )
-        return
-    
-    if ":" in message.command[1]:
+        return    
+
+    if any(x in message.command[1] for x in [":", ".", ","]):
         # Handle time format HH:MM
         time = message.command[1]
-        time_parts = time.split(":")
+        text_to_remind = message.text[1+6+1 + len(time) + 1:]
+
+        if ":" in time:
+            time_parts = time.split(":")
+        elif "." in time:
+            time_parts = time.split(".")
+        elif "," in time:
+            time_parts = time.split(",")
         hours = int(time_parts[0])
         minutes = int(time_parts[1])
         current_time = get_current_time_in_user_timezone()
         reminder_time = current_time.replace(hour=hours, minute=minutes)
 
-        text_to_remind = message.text[1+6+1 + len(time) + 1:]
-
-    elif "/" in message.command[1] and ":" in message.command[2]:
+    elif any(x in message.command[1] for x in ["/", "-"]) and any(x in message.command[2] for x in [":", ".", ","]):
         # Handle date format DD/MM/YYYY HH:MM
         date = message.command[1]
         time = message.command[2]
-        day, month, year = map(int, date.split("/"))
-        time_parts = time.split(":")
+        text_to_remind = message.text[1+6+1 + len(date) + 1 + len(time) + 1:]
+
+        if len(date) == 5:
+            date += f"/{get_current_time_in_user_timezone().year}"
+        if "/" in date:
+            day, month, year = map(int, date.split("/"))
+        elif "-" in date:
+            day, month, year = map(int, date.split("-"))
+        if ":" in time:
+            time_parts = time.split(":")
+        elif "." in time:
+            time_parts = time.split(".")
+        elif "," in time:
+            time_parts = time.split(",")
         hours = int(time_parts[0])
         minutes = int(time_parts[1])
         current_time = get_current_time_in_user_timezone()
         reminder_time = current_time.replace(year=year, month=month, day=day, hour=hours, minute=minutes)
 
-        text_to_remind = message.text[1+6+1 + len(date) + 1 + len(time) + 1:]
-
-    elif "/" in message.command[1] and ":" not in message.command[2]:
+    elif any(x in message.command[1] for x in ["/", "-"]) and not any(x in message.command[2] for x in [":", ".", ","]):
         # Handle date format DD/MM/YYYY
         date = message.command[1]
-        day, month, year = map(int, date.split("/"))
+        text_to_remind = message.text[1+6+1 + len(date) + 1:]
+
+        if len(date) == 5:
+            date += f"/{get_current_time_in_user_timezone().year}"
+        if "/" in date:
+            day, month, year = map(int, date.split("/"))
+        elif "-" in date:
+            day, month, year = map(int, date.split("-"))
         current_time = get_current_time_in_user_timezone()
         reminder_time = current_time.replace(year=year, month=month, day=day, hour=0, minute=0)
-
-        text_to_remind = message.text[1+6+1 + len(date) + 1:]
 
     else:
         # Handle delay format (e.g., 1h30m)
         delay_string = message.command[1]
+        text_to_remind = message.text[1+6+1 + len(delay_string) + 1:]
+
         delay = parse_reminder_time(delay_string)
         current_time = get_current_time_in_user_timezone()
         reminder_time = current_time + delay
-
-        text_to_remind = message.text[1+6+1 + len(delay_string) + 1:]
 
     await client.send_message(message.chat.id, text_to_remind, schedule_date=reminder_time)
 
