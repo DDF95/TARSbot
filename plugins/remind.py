@@ -70,23 +70,60 @@ async def remind(client, message):
         await message.reply(
             "Usage:\n`!remind <time> <message>`\nExamples:\n`!remind 1h30m Buy vegan milk`\n`!remind 1d Touch grass`\n\n" +
             "`!reminders` to see your saved reminders.\n" +
-            "`!delreminder <number>` to delete a reminder.",
+            "`!delreminder <number>` to delete a reminder.\n" +
+            "`!delallreminders` to delete all reminders.",
             parse_mode=enums.ParseMode.MARKDOWN,
         )
-    else:
-        time_from_now = message.command[1]
-        text_to_remind = message.text[1+6+1 + len(time_from_now) +1:]
+        return
+    
+    if ":" in message.command[1]:
+        # Handle time format HH:MM
+        time = message.command[1]
+        time_parts = time.split(":")
+        hours = int(time_parts[0])
+        minutes = int(time_parts[1])
+        current_time = get_current_time_in_user_timezone()
+        reminder_time = current_time.replace(hour=hours, minute=minutes)
 
-        delay = parse_reminder_time(time_from_now)
+        text_to_remind = message.text[1+6+1 + len(time) + 1:]
+
+    elif "/" in message.command[1] and ":" in message.command[2]:
+        # Handle date format DD/MM/YYYY HH:MM
+        date = message.command[1]
+        time = message.command[2]
+        day, month, year = map(int, date.split("/"))
+        time_parts = time.split(":")
+        hours = int(time_parts[0])
+        minutes = int(time_parts[1])
+        current_time = get_current_time_in_user_timezone()
+        reminder_time = current_time.replace(year=year, month=month, day=day, hour=hours, minute=minutes)
+
+        text_to_remind = message.text[1+6+1 + len(date) + 1 + len(time) + 1:]
+
+    elif "/" in message.command[1] and ":" not in message.command[2]:
+        # Handle date format DD/MM/YYYY
+        date = message.command[1]
+        day, month, year = map(int, date.split("/"))
+        current_time = get_current_time_in_user_timezone()
+        reminder_time = current_time.replace(year=year, month=month, day=day, hour=0, minute=0)
+
+        text_to_remind = message.text[1+6+1 + len(date) + 1:]
+
+    else:
+        # Handle delay format (e.g., 1h30m)
+        delay_string = message.command[1]
+        delay = parse_reminder_time(delay_string)
         current_time = get_current_time_in_user_timezone()
         reminder_time = current_time + delay
 
-        await client.send_message(message.chat.id, text_to_remind, schedule_date=reminder_time)
+        text_to_remind = message.text[1+6+1 + len(delay_string) + 1:]
 
-        italy_time_str = format_datetime(reminder_time)[0]
-        utc_time_str = format_datetime(reminder_time.astimezone(pytz.utc))[1]
+    await client.send_message(message.chat.id, text_to_remind, schedule_date=reminder_time)
 
-        await message.reply(f"Reminder saved! It will be sent on {italy_time_str} ({utc_time_str} UTC).")
+    italy_time_str = format_datetime(reminder_time)[0]
+    utc_time_str = format_datetime(reminder_time.astimezone(pytz.utc))[1]
+
+    await message.reply(f"Reminder saved! It will be sent on {italy_time_str} ({utc_time_str} UTC).")
 
 
 @Client.on_message(filters.command("reminders", "!"))
@@ -113,7 +150,7 @@ async def show_reminders(client, message):
 @Client.on_message(filters.command("delreminder", "!"))
 async def delete_reminder(client, message):
     if len(message.command) != 2:
-        await message.reply("Usage: `!delreminder <reminder_number>`")
+        await message.reply("Usage: `!delreminder <number>`")
         return
 
     reminder_number = int(message.command[1])
@@ -143,5 +180,24 @@ async def delete_reminder(client, message):
 
     await message.reply("Reminder deleted successfully.")
 
+
+@Client.on_message(filters.command("delallreminders", "!"))
+async def delete_all_reminders(client, message):
+    scheduled_messages = await client.invoke(
+        functions.messages.GetScheduledHistory(
+            peer=await client.resolve_peer(message.chat.id),
+            hash=0
+        )
+    )
+    reminders = scheduled_messages.messages
+    if len(reminders) == 0:
+        await message.reply("You have no saved reminders.")
+    else:
+        for reminder in reminders:
+            await client.invoke(functions.messages.DeleteScheduledMessages(
+                peer=await client.resolve_peer(message.chat.id),
+                id=[reminder.id]
+            ))
+        await message.reply("All reminders have been deleted.")
 
 # TODO: add an option to save the reminder as a reply to a message
