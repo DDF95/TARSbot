@@ -30,7 +30,7 @@ def format_reminder_list(reminders):
     now = datetime.datetime.now(pytz.utc)
     for reminder in reminders:
         reminder_time = datetime.datetime.fromtimestamp(reminder.date, tz=pytz.utc)
-        italy_time_str, utc_time_str = format_datetime(reminder_time)
+        italy_time_str = format_datetime(reminder_time.astimezone(get_user_timezone()))[0]
         utc_time_str = format_datetime(reminder_time.astimezone(pytz.utc))[1]
 
         time_left = reminder_time - now
