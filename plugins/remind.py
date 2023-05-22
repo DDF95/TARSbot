@@ -98,11 +98,13 @@ async def remind(client, message):
         time = message.command[2]
         text_to_remind = message.text[1+6+1 + len(date) + 1 + len(time) + 1:]
 
-        if len(date) == 5:
-            date += f"/{get_current_time_in_user_timezone().year}"
         if "/" in date:
+            if len(date) == 5:
+                date += f"/{get_current_time_in_user_timezone().year}"
             day, month, year = map(int, date.split("/"))
         elif "-" in date:
+            if len(date) == 5:
+                date += f"-{get_current_time_in_user_timezone().year}"
             day, month, year = map(int, date.split("-"))
         if ":" in time:
             time_parts = time.split(":")
@@ -120,11 +122,13 @@ async def remind(client, message):
         date = message.command[1]
         text_to_remind = message.text[1+6+1 + len(date) + 1:]
 
-        if len(date) == 5:
-            date += f"/{get_current_time_in_user_timezone().year}"
         if "/" in date:
+            if len(date) == 5:
+                date += f"/{get_current_time_in_user_timezone().year}"
             day, month, year = map(int, date.split("/"))
         elif "-" in date:
+            if len(date) == 5:
+                date += f"-{get_current_time_in_user_timezone().year}"
             day, month, year = map(int, date.split("-"))
         current_time = get_current_time_in_user_timezone()
         reminder_time = current_time.replace(year=year, month=month, day=day, hour=0, minute=0)
