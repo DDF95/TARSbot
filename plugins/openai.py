@@ -45,7 +45,11 @@ async def ask(client, message):
     engine = re.match(r"(?i)^!ask(\w+)", message.text).group(1).lower()
     prompt = message.text[1+3+len(engine)+1:]
 
-    if engine == "davinci":
+    if engine == "gpt":
+        response = await openai_response("gpt-3.5-turbo-instruct", prompt, 0.9, 200, 1, 0, 0.6, client, message)
+        await message.reply(text=f"**{prompt}**{response['choices'][0]['text']}", parse_mode=enums.ParseMode.MARKDOWN)
+
+    elif engine == "davinci":
         cfg = ConfigParser(interpolation=None)
         cfg.read("config.ini")
         premium_users_str = cfg.get("openai_premium_users", "ids")
