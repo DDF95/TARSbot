@@ -7,6 +7,76 @@ from pyrogram import Client, enums, filters
 reactions = ["👍", "👎", "❤️", "🔥", "🎉", "🤩", "😱", "😁", "😢", "💩", "🤮", "🤬", "🤯", "🤔", "🥰", "👏", "🙏", "👌", "🕊️", "🤡", "🥱", "🥴", "😍", "🐳", "❤️‍🔥", "🌚", "🌭", "💯", "🤣", "⚡️", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋", "🖕", "😈", "😴", "😭", "🤓", "👻", "👨‍💻", "👀", "🎃", "🙈", "😇", "😨", "🤝", "✍️", "🤗", "🫡", "🎅", "🎄", "☃️", "💅", "🤪", "🗿", "🆒", "💘", "🙉", "🦄", "😘", "💊", "🙊", "😎", "👾", "🤷‍♂️", "🤷", "🤷‍♀️", "😡"]
 
 
+@Client.on_message(filters.text, group=1)
+async def getter(client, message):
+    if not message.text.startswith("!"):
+        word_list = message.text.split(" ")
+
+        # Text
+        try:
+            with open("sets.json", 'r') as sets_file:
+                sets_data = json.load(sets_file)
+            
+            if sets_data.get(str(message.chat.id)):
+                for key, value in sets_data[str(message.chat.id)].items():
+                    if key in word_list:
+                        await message.reply(value)
+                        break
+        except:
+            pass
+        # TODO: maybe only check for the first word of the message, not for all words in the message. Right now it could be spammy if you use a lot of sets.
+
+        # Reactions
+        try:
+            with open("reactions.json", 'r') as reacts_file:
+                reacts_data = json.load(reacts_file)
+            
+            if reacts_data.get(str(message.chat.id)):
+                for key, value in reacts_data[str(message.chat.id)].items():
+                    if key in word_list:
+                        await client.send_reaction(chat_id=message.chat.id, message_id=message.id, emoji=value)
+                        break
+            
+            # frider love
+            # if message.chat.id == -1001383916463 and message.from_user.id == 600250407:
+            #     await client.send_reaction(chat_id=message.chat.id, message_id=message.id, emoji="❤️")
+        except Exception as e:
+            print(e)
+
+        # Media
+        try:
+            with open("media.json", 'r') as media_file:
+                media_data = json.load(media_file)
+
+            if media_data.get(str(message.chat.id)):
+                for key, value in media_data[str(message.chat.id)].items():
+                    if key in word_list:
+                        media_message_id = media_data[str(message.chat.id)].get(key).split()[1]
+                        media_message = await client.get_messages(chat_id=message.chat.id, message_ids=int(media_message_id))
+
+                        if value.split()[0] == "photo":
+                            await message.reply_photo(photo=media_message.photo.file_id)
+                        elif value.split()[0] == "video":
+                            await message.reply_video(video=media_message.video.file_id)
+                        elif value.split()[0] == "audio":
+                            await message.reply_audio(audio=media_message.audio.file_id)
+                        elif value.split()[0] == "document":
+                            await message.reply_document(document=media_message.document.file_id)
+                        elif value.split()[0] == "sticker":
+                            await message.reply_sticker(sticker=media_message.sticker.file_id)
+                        elif value.split()[0] == "voice":
+                            await message.reply_voice(voice=media_message.voice.file_id)
+                        elif value.split()[0] == "video_note":
+                            await message.reply_video_note(video_note=media_message.video_note.file_id)
+                        elif value.split()[0] == "animation":
+                            await message.reply_animation(animation=media_message.animation.file_id)
+                        else:
+                            pass
+                        break
+        except:
+            pass
+
+
 # Text
 @Client.on_message(filters.command("set", "!"))
 async def setter(client, message):
@@ -285,68 +355,3 @@ async def media_list(client, message):
         await message.reply(media_list)
     else:
         await message.reply("No media found for this chat! Use `!setmedia <trigger>` to create one.", parse_mode=enums.ParseMode.MARKDOWN)
-
-
-@Client.on_message(filters.text, group=1)
-async def getter(client, message):
-    word_list = message.text.split(" ")
-
-    # Text
-    try:
-        with open("sets.json", 'r') as sets_file:
-            sets_data = json.load(sets_file)
-        
-        if sets_data.get(str(message.chat.id)):
-            for key, value in sets_data[str(message.chat.id)].items():
-                if key in word_list:
-                    await message.reply(value)
-                    break
-    except:
-        pass
-    # TODO: maybe only check for the first word of the message, not for all words in the message. Right now it could be spammy if you use a lot of sets.
-
-    # Reactions
-    try:
-        with open("reactions.json", 'r') as reacts_file:
-            reacts_data = json.load(reacts_file)
-        
-        if reacts_data.get(str(message.chat.id)):
-            for key, value in reacts_data[str(message.chat.id)].items():
-                if key in word_list:
-                    await client.send_reaction(chat_id=message.chat.id, message_id=message.id, emoji=value)
-                    break
-    except Exception as e:
-        print(e)
-
-    # Media
-    try:
-        with open("media.json", 'r') as media_file:
-            media_data = json.load(media_file)
-
-        if media_data.get(str(message.chat.id)):
-            for key, value in media_data[str(message.chat.id)].items():
-                if key in word_list:
-                    media_message_id = media_data[str(message.chat.id)].get(key).split()[1]
-                    media_message = await client.get_messages(chat_id=message.chat.id, message_ids=int(media_message_id))
-
-                    if value.split()[0] == "photo":
-                        await message.reply_photo(photo=media_message.photo.file_id)
-                    elif value.split()[0] == "video":
-                        await message.reply_video(video=media_message.video.file_id)
-                    elif value.split()[0] == "audio":
-                        await message.reply_audio(audio=media_message.audio.file_id)
-                    elif value.split()[0] == "document":
-                        await message.reply_document(document=media_message.document.file_id)
-                    elif value.split()[0] == "sticker":
-                        await message.reply_sticker(sticker=media_message.sticker.file_id)
-                    elif value.split()[0] == "voice":
-                        await message.reply_voice(voice=media_message.voice.file_id)
-                    elif value.split()[0] == "video_note":
-                        await message.reply_video_note(video_note=media_message.video_note.file_id)
-                    elif value.split()[0] == "animation":
-                        await message.reply_animation(animation=media_message.animation.file_id)
-                    else:
-                        pass
-                    break
-    except:
-        pass

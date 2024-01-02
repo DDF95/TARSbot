@@ -82,86 +82,28 @@ async def ask(client, message):
         )
 
 
-@Client.on_message(filters.command("chat", "!"))
-async def startchat(client, message):
-    if len(message.command) == 1:
-        await message.reply(
-            text="Usage: `!chat <role> & <prompt>`\n\n"
-            "Use \"`&`\" to separate the role from the prompt. If you don't specify a role, the default one will be used.\n\n"
-            "Example: `!chat You're a funny and witty assistant. & Hello, how are you?`",
-            parse_mode=enums.ParseMode.MARKDOWN
-        )
-    else:
-        await client.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
-        
+@Client.on_message(filters.text, group=2)
+async def chat(client, message):
+    if message.text.startswith("."):
+        return
+    
+    if message.text == "!chat":
+        await message.reply("Usage: `!chat <prompt>`", parse_mode=enums.ParseMode.MARKDOWN)
+        return
+    
+    default_role = "You're TARS, a helpful and friendly assistant, always ready to help people, whatever they ask you to do. Your pronouns are they/them."
+    
+    if message.text.startswith("!chat "):
         cfg = ConfigParser(interpolation=None)
         cfg.read("config.ini")
         openai_apikeys = cfg.items("openai_apikeys")
         api_key = random.choice(list(openai_apikeys))[1]
         openai.api_key = api_key
-
-        default_role = "You're TARS. a helpful and friendly assistant, always ready to help people, whatever they ask you to do. Your pronouns are they/them."
+        
         input_text = message.text[1+4+1:]
-        if "&" in input_text:
-            role, prompt = input_text.split("&")
-        else:
-            role = default_role
-            prompt = message.text[1+4+1:]
-        
-        async with aiohttp.ClientSession() as session:
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            }
-            data = {
-                "model": "gpt-3.5-turbo",
-                "messages": [
-                    {"role": "system", "content": role},
-                    {"role": "user", "content": prompt},
-                ],
-            }
-            async with session.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                data=json.dumps(data),
-            ) as response:
-                response_data = await response.json()
-
-        response_text = response_data["choices"][0]["message"]["content"]
-        await message.reply(response_text)
-
-
-@Client.on_message(filters.text & filters.reply, group=2)
-async def continue_chat(client, message):
-    if message.reply_to_message.from_user.id == client.me.id:        
-        cfg = ConfigParser(interpolation=None)
-        cfg.read("config.ini")
-        openai_apikeys = cfg.items("openai_apikeys")
-        api_key = random.choice(list(openai_apikeys))[1]
-        openai.api_key = api_key
-
-        if message.reply_to_message.text:
-            prompt = message.text
-        elif message.reply_to_message.caption:
-            prompt = message.caption
-        else:
-            return
-        
-        default_role = "You're TARS, a helpful and friendly assistant, always ready to help people, whatever they ask you to do. Your pronouns are they/them."
-        first_response = message.reply_to_message
-        first_response_text = first_response.text
-        first_prompt = first_response.reply_to_message
-        first_prompt_text = first_prompt.text
-        if not first_prompt_text.startswith("!chat"):
-            return
 
         await client.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
-
-        if "&" in first_prompt_text:
-            role, first_prompt_text = first_prompt_text.split("&")
-        else:
-            role = default_role
-
+        
         async with aiohttp.ClientSession() as session:
             headers = {
                 "Authorization": f"Bearer {api_key}",
@@ -170,10 +112,8 @@ async def continue_chat(client, message):
             data = {
                 "model": "gpt-3.5-turbo",
                 "messages": [
-                    {"role": "system", "content": role},
-                    {"role": "user", "content": first_prompt_text},
-                    {"role": "assistant", "content": first_response_text},
-                    {"role": "user", "content": prompt},
+                    {"role": "system", "content": default_role},
+                    {"role": "user", "content": input_text},
                 ],
             }
             async with session.post(
@@ -182,16 +122,56 @@ async def continue_chat(client, message):
                 data=json.dumps(data),
             ) as response:
                 response_data = await response.json()
-        
+
         response_text = response_data["choices"][0]["message"]["content"]
-        await message.reply(response_text)
+        await client.send_message(text=response_text, chat_id=message.chat.id, reply_to_message_id=message.id)
 
-        # if message.from_user.id == 14770193:
-        #     await message.reply(role)
-        #     await message.reply(first_prompt_text)
-        #     await message.reply(first_response_text)
-        #     await message.reply(prompt)
+    else:
+        if message.reply_to_message and message.reply_to_message.from_user.id == 75818507:
+            thread_message = message.reply_to_message
+            thread_messages = []
+            thread_messages.append(thread_message)
 
+            while thread_message.reply_to_message:
+                thread_message = thread_message.reply_to_message
+                thread_messages.append(thread_message)
+            
+            structure = [
+                {"role": "system", "content": default_role},
+                *[
+                    {"role": "user", "content": msg.text} if msg.from_user.id != 75818507 else {"role": "assistant", "content": msg.text}
+                    for msg in reversed(thread_messages)
+                ],
+                {"role": "user", "content": message.text}
+            ]
+
+            if list(reversed(thread_messages))[0].text.startswith("!chat"):
+                cfg = ConfigParser(interpolation=None)
+                cfg.read("config.ini")
+                openai_apikeys = cfg.items("openai_apikeys")
+                api_key = random.choice(list(openai_apikeys))[1]
+                openai.api_key = api_key
+                            
+                await client.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
+
+                async with aiohttp.ClientSession() as session:
+                    headers = {
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    }
+                    data = {
+                        "model": "gpt-3.5-turbo",
+                        "messages": structure,
+                    }
+                    async with session.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers=headers,
+                        data=json.dumps(data),
+                    ) as response:
+                        response_data = await response.json()
+                
+                response_text = response_data["choices"][0]["message"]["content"]
+                await client.send_message(text=response_text, chat_id=message.chat.id, reply_to_message_id=message.id)
 
 
 @Client.on_message(filters.command("continue", "!"))

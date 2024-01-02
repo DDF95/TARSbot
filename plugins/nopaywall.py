@@ -1,4 +1,3 @@
-from codecs import escape_decode
 from pyrogram import Client, filters, enums
 
 @Client.on_message(filters.command("paywall", "!"))

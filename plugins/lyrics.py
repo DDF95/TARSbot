@@ -44,3 +44,22 @@ async def lyrics(client, message):
                 await message.reply("No lyrics found")
         else:
             await message.reply("The server returned an error")
+
+
+@Client.on_message(filters.command("spotify", ["!", "/"]))
+async def spotify_search(client, message):
+    if len(message.command) == 1:
+        await message.reply("Usage: `!spotify <song>`", parse_mode=enums.ParseMode.MARKDOWN)
+    else:
+        query = message.text[1+7+1:]
+
+        spotify = st.start_session(SP_DC, SP_KEY)
+        access_token = spotify[0]
+
+        r_spotify = requests.get("https://api.spotify.com/v1/search?q=" + query + "&type=track", headers={"Authorization": "Bearer " + access_token})
+
+        if r_spotify.status_code == 200:
+            track_url = r_spotify.json()['tracks']['items'][0]['external_urls']['spotify']
+            await message.reply(track_url)
+        else:
+            await message.reply("I couldn't find that song")
