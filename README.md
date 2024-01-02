@@ -2,7 +2,7 @@
 A Telegram userbot based on Pyrogram
 
 ## Setup
-To install Pyrogram (fork by KurimuzonAkuma):
+To install Pyrogram (fork by @KurimuzonAkuma):
 ```
 pip3 install -U git+https://github.com/KurimuzonAkuma/pyrogram.git@dev
 ```
