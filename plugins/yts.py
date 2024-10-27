@@ -1,8 +1,15 @@
+import aiofiles
+import aiohttp
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import json
-import requests
 
 from imdb import IMDb
 from pyrogram import Client, enums, filters
+
+
+ia = IMDb()
+executor = ThreadPoolExecutor()
 
 
 def trim_description(caption, description):
@@ -13,10 +20,10 @@ def trim_description(caption, description):
     return description
 
 
-def get_director(imdb_id):
+async def get_director(imdb_id):
+    loop = asyncio.get_running_loop()
     try:
-        ia = IMDb()
-        movie = ia.get_movie(imdb_id.lstrip("tt"))
+        movie = await loop.run_in_executor(executor, ia.get_movie, imdb_id.lstrip("tt"))
         directors = movie.get('directors')
         return directors[0]['name'] if directors else ""
     except Exception as e:
@@ -51,8 +58,10 @@ async def movie_search(client, message):
         query = " ".join(message.command[1:])
         url = "https://yts.mx/api/v2/list_movies.json"
         params = {"query_term": query, "limit": 1}
-        r = requests.get(url, params=params)
-        movies = r.json().get("data", {}).get("movies", [])
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as r:
+                data = await r.json()
+        movies = data.get("data", {}).get("movies", [])
 
         if not movies:
             await message.reply("No movies found.")
@@ -67,11 +76,14 @@ async def movie_search(client, message):
         genres = ", ".join(movie['genres']) if movie.get('genres') else ""
         poster_url = movie['large_cover_image']
         
-        director = get_director(imdb_id) if imdb_id else ""
+        director = await get_director(imdb_id) if imdb_id else ""
+        
         details_url = f"https://yts.mx/api/v2/movie_details.json?movie_id={movie['id']}&with_cast=true"
-        details_response = requests.get(details_url)
-        movie_details = details_response.json().get("data", {}).get("movie", {})
-        cast_data = movie_details.get("cast", [])
+        async with aiohttp.ClientSession() as session:
+            async with session.get(details_url) as details_response:
+                movie_details = await details_response.json()
+        
+        cast_data = movie_details.get("data", {}).get("movie", {}).get("cast", [])
         cast = "\n".join([f"• **{actor['name']}** as __{actor['character_name']}__" for actor in cast_data]) if cast_data else ""
 
         torrents = movie.get('torrents', [])
@@ -81,20 +93,19 @@ async def movie_search(client, message):
             torrent_type = f"{preferred_torrent['type']} {preferred_torrent['video_codec']}"
             torrent_size = preferred_torrent['size']
 
-            torrent_response = requests.get(torrent_url)
-            if torrent_response.status_code == 200:
-                content_disposition = torrent_response.headers.get('content-disposition')
-                if content_disposition:
-                    filename = content_disposition.split("filename=")[1].strip('"')
-                else:
-                    filename = f"{torrent_url.split('/')[-1]}"
-                
-                with open(filename, 'wb') as f:
-                    f.write(torrent_response.content)
-                torrent_file_path = filename
-            else:
-                await message.reply("Torrent file not found.")
-                return
+            async with aiohttp.ClientSession() as session:
+                async with session.get(torrent_url) as torrent_response:
+                    if torrent_response.status == 200:
+                        content_disposition = torrent_response.headers.get('content-disposition')
+                        if content_disposition:
+                            filename = content_disposition.split("filename=")[1].strip('"')
+                        else:
+                            filename = f"{torrent_url.split('/')[-1]}"
+                        with open(filename, 'wb') as f:
+                            f.write(await torrent_response.read())
+                    else:
+                        await message.reply("Torrent file not found.")
+                        return
             
             caption_parts = [
                 f"**{title} ({year})**",
@@ -108,7 +119,7 @@ async def movie_search(client, message):
             caption = caption.replace(description, trim_description(caption, description))
             
             await message.reply_photo(poster_url, caption=caption)
-            await message.reply_document(torrent_file_path, caption=f"Torrent file for `{title} ({year})`\nSize: {torrent_size} ({torrent_type})")
+            await message.reply_document(filename, caption=f"Torrent file for `{title} ({year})`\nSize: {torrent_size} ({torrent_type})")
         
         else:
             await message.reply(f"`{title} ({year})`\n\n**Rating:** {rating}/10\n\nNo suitable torrents available.")
@@ -119,14 +130,19 @@ async def movie_search(client, message):
 
 @Client.on_message(filters.command("searchyts", "!"))
 async def movie_search_list(client, message):
+    results_message = await message.reply("Searching... (this can take a while)")
+
     await client.send_chat_action(message.chat.id, enums.ChatAction.TYPING)
 
     try:
         query = " ".join(message.command[1:])
         url = "https://yts.mx/api/v2/list_movies.json"
-        params = {"query_term": query, "limit": 5}
-        r = requests.get(url, params=params)
-        movies = r.json().get("data", {}).get("movies", [])
+        params = {"query_term": query, "limit": 10}
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as r:
+                data = await r.json()
+        movies = data.get("data", {}).get("movies", [])
 
         if not movies:
             await message.reply("No movies found.")
@@ -137,7 +153,7 @@ async def movie_search_list(client, message):
             title = movie['title']
             year = movie['year']
             imdb_id = movie.get('imdb_code')
-            director = get_director(imdb_id) if imdb_id else None
+            director = await get_director(imdb_id) if imdb_id else None
 
             torrents = movie.get('torrents', [])
             preferred_torrent = get_preferred_torrent(torrents)
@@ -148,15 +164,17 @@ async def movie_search_list(client, message):
                 response += f"**{title} ({year})**\n"
                 if director:
                     response += f"Directed by: {director}\n"
-                response += f"/ytstorrent_{torrent_hash} ({torrent_type}, {torrent_size})\n\n"
-
-        await message.reply(response)
+                if message.chat.type == enums.ChatType.GROUP or message.chat.type == enums.ChatType.SUPERGROUP:
+                    response += f"/yts{torrent_hash} ({torrent_type}, {torrent_size})\n\n"
+                else:
+                    response += f"Tap to copy: `/yts{torrent_hash}` ({torrent_type}, {torrent_size})\n\n"
+        await results_message.edit(response)
         
     except Exception as e:
-        await message.reply(f"Error:\n<code>{e}</code>")
+        await results_message.edit(f"Error:\n<code>{e}</code>")
 
 
-@Client.on_message(filters.regex(r"^/ytstorrent_([a-zA-Z0-9]+)$"))
+@Client.on_message(filters.regex(r"^/yts([a-zA-Z0-9]+)$"))
 async def download_torrent(client, message):
     await client.send_chat_action(message.chat.id, enums.ChatAction.UPLOAD_DOCUMENT)
 
@@ -164,19 +182,20 @@ async def download_torrent(client, message):
         torrent_hash = message.matches[0].group(1)
         torrent_url = f"https://yts.mx/torrent/download/{torrent_hash}"
 
-        torrent_response = requests.get(torrent_url)
-        if torrent_response.status_code == 200:
-            content_disposition = torrent_response.headers.get('content-disposition')
-            if content_disposition:
-                filename = content_disposition.split("filename=")[1].strip('"')
-            else:
-                filename = f"{torrent_hash}.torrent"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(torrent_url) as torrent_response:
+                if torrent_response.status == 200:
+                    content_disposition = torrent_response.headers.get('content-disposition')
+                    if content_disposition:
+                        filename = content_disposition.split("filename=")[1].strip('"')
+                    else:
+                        filename = f"{torrent_hash}.torrent"
 
-            with open(filename, 'wb') as f:
-                f.write(torrent_response.content)
-            await message.reply_document(filename)
-        else:
-            await message.reply("Torrent file not found.")
+                    with open(filename, 'wb') as f:
+                        f.write(await torrent_response.read())
+                    await message.reply_document(filename)
+                else:
+                    await message.reply("Torrent file not found.")
         
     except Exception as e:
         await message.reply(f"Error:\n<code>{e}</code>")
@@ -191,29 +210,30 @@ async def debug_movie(client, message):
         
         search_url = "https://yts.mx/api/v2/list_movies.json"
         search_params = {"query_term": query, "limit": 5}
-        search_response = requests.get(search_url, params=search_params)
-        search_data = search_response.json()
-
-        movie_url = "https://yts.mx/api/v2/list_movies.json"
-        movie_params = {"query_term": query, "limit": 1}
-        movie_response = requests.get(movie_url, params=movie_params)
-        movie_data = movie_response.json()
         
-        if movie_data.get("data", {}).get("movies"):
-            movie_id = movie_data["data"]["movies"][0]["id"]
-            details_url = f"https://yts.mx/api/v2/movie_details.json?movie_id={movie_id}&with_cast=true"
-            details_response = requests.get(details_url)
-            movie_details = details_response.json()
-        else:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(search_url, params=search_params) as search_response:
+                search_data = await search_response.json()
+            
+            movie_url = "https://yts.mx/api/v2/list_movies.json"
+            movie_params = {"query_term": query, "limit": 1}
+            async with session.get(movie_url, params=movie_params) as movie_response:
+                movie_data = await movie_response.json()
+        
             movie_details = {}
+            if movie_data.get("data", {}).get("movies"):
+                movie_id = movie_data["data"]["movies"][0]["id"]
+                details_url = f"https://yts.mx/api/v2/movie_details.json?movie_id={movie_id}&with_cast=true"
+                async with session.get(details_url) as details_response:
+                    movie_details = await details_response.json()
 
-        with open("search_data.txt", "w") as f:
-            json.dump(search_data, f, indent=4)
-        with open("movie_data.txt", "w") as f:
-            json.dump(movie_data, f, indent=4)
-        with open("movie_details.txt", "w") as f:
-            json.dump(movie_details, f, indent=4)
-        
+        async with aiofiles.open("search_data.txt", "w") as f:
+            await f.write(json.dumps(search_data, indent=4))
+        async with aiofiles.open("movie_data.txt", "w") as f:
+            await f.write(json.dumps(movie_data, indent=4))
+        async with aiofiles.open("movie_details.txt", "w") as f:
+            await f.write(json.dumps(movie_details, indent=4))
+
         await message.reply_document("search_data.txt", caption="Search data")
         await message.reply_document("movie_data.txt", caption="Main movie data")
         await message.reply_document("movie_details.txt", caption="Detailed movie data with cast")
