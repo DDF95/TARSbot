@@ -4,12 +4,12 @@ A Telegram userbot based on Pyrogram
 ## Setup
 To install Pyrogram (fork by @KurimuzonAkuma):
 ```
-pip3 install -U git+https://github.com/KurimuzonAkuma/pyrogram.git@dev
+pip3 install -U Kurigram
 ```
 
 To install all the dependencies (sorry, there are a lot of them!):
 ```
-pip3 install tgcrypto ffmpy praw youtube-search-python tweepy pytimeparse wand openai justwatch wikipedia spotify_token deeppyer spacy music21 pytz IMDbPy aiohttp aiofiles
+pip3 install tgcrypto ffmpy praw google-api-python-client tweepy pytimeparse wand openai justwatch wikipedia spotify_token deeppyer spacy music21 pytz IMDbPy aiohttp aiofiles
 ```
 
 Install Spacy's Italian news core:
