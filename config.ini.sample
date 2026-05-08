@@ -33,12 +33,6 @@ h2p_apiKey =
 [openweathermap]
 owm_appid = 
 
-[openai_apikeys]
-openai_apikey =
-
-[openai_premium_users]
-ids = 
-
 [spotify]
 sp_dc =
 sp_key =
